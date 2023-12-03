@@ -1,13 +1,12 @@
 import heapq
-from abc import ABC, abstractmethod
 from random import sample
-
-from mutators import Mutator
-from qqdm import qqdm
+from typing import Any, Iterator
 
 from chromosome import Chromosome
+from fitness_score import FitnessScore
 from llm import LLM
 from parents_policy import ParentsPolicy
+from qqdm import qqdm
 from variations import VariationsPolicy
 
 # Use as reference: https://towardsdatascience.com/genetic-algorithms-for-natural-language-processing-b055aa7c14e9
@@ -53,23 +52,6 @@ class MatingPoolPolicy:
         yield from ()
 
 
-class FitnessScore:
-    def __init__(self, target: str):
-        self._similarity_model = None  # TBD
-        self._target_features = self._similarity_model(target)
-
-    def _similarity(
-        self, target: torch.Tensor, solutions: torch.Tensor
-    ) -> torch.Tensor:
-        # Target: 1 x dim
-        # Solutions: N x dim
-        return (target @ solutions.T)[0]
-
-    def __call__(self, solutions: list[str]) -> torch.Tensor:
-        solutions_features = self._similarity_model(solutions)
-        return self._similarity(self._target_features, solutions_features)
-
-
 class GeneticAlgorithm:
     def __init__(
         self,
@@ -96,13 +78,13 @@ class GeneticAlgorithm:
         *args: dict[str, Any],
         **kwargs: dict[str, Any],
     ) -> None:
-        pbar = qqdm(range(iterations))
+        pbar = qqdm(range(iterations), total=iterations)
         population = self._population_policy.init(target)
-        batch_tokens = self._llm.tokenize_population(population)
+        batch_tokens = self._llm.tokenizer_population(population)
         # 1. per each chromosome, we need to compute the LLM output and the fitness score function
         compute_fitness_func(self._llm, population, self._fitness_score)
 
-        for iteration in pbar:
+        for _ in pbar:
             # 2. Choose the population that can breed (tournament selection)
             # https://en.wikipedia.org/wiki/Tournament_selection#:~:text=Tournament%20selection%20is%20a%20method,at%20random%20from%20the%20population.
             best_parents = self._parents_policy(population)
@@ -115,7 +97,7 @@ class GeneticAlgorithm:
             population += list(self._variations_policy(pair_parents))
 
             # 5. Filter population
-            population = headq.nlargest(
+            population = heapq.nlargest(
                 self._population_policy.max_population,
                 key=lambda c: c.score,
             )
@@ -128,7 +110,7 @@ class GeneticAlgorithm:
             )
 
         # 7. Filter population
-        best_population = headq.nlargest(
+        best_population = heapq.nlargest(
             topk_solutions,
             key=lambda c: c.score,
         )
