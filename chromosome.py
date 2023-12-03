@@ -10,9 +10,9 @@ class Chromosome:
     def __init__(
         self,
         prompt: str,
-        tokens: torch.Tensor | None,
-        solution: str | None,
-        score: float | None,
+        tokens: torch.Tensor | None = None,
+        solution: str | None = None,
+        score: float | None = None,
     ) -> None:
         self.prompt = prompt
         self.tokens = tokens
