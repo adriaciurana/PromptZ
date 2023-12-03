@@ -15,7 +15,11 @@ class LLM(ABC):
         self.device = device if torch.cuda.is_available() else "cpu"
 
     @abstractclassmethod
-    def tokenizer_population(self, population: list[Chromosome]) -> None:
+    def tokenizer(self, chromosomes: list[Chromosome]) -> None:
+        ...
+
+    @abstractclassmethod
+    def decode_tokens_to_prompt(self, chromosomes: list[Chromosome]) -> None:
         ...
 
     def pad_sequences(self, tokens: list[torch.Tensor]) -> torch.Tensor:
@@ -44,11 +48,15 @@ class Bloom(LLM):
             load_in_8bit=True,
         )
 
-    def tokenizer_population(self, population: list[Chromosome]) -> None:
-        for c in population:
+    def tokenizer(self, chromosomes: list[Chromosome]) -> None:
+        for c in chromosomes:
             c.tokens = self._tokenizer.encode(
                 c.prompt, return_tensors="pt"
             )  # ["input_ids"]
+
+    def decode_tokens_to_prompt(self, chromosomes: list[Chromosome]) -> None:
+        for c in chromosomes:
+            c.prompt = self._tokenizer.decode(c.tokens[0], skip_special_tokens=True)
 
     def __call__(self, population: list[Chromosome]) -> list[str]:
         batch_prompts = self.pad_sequences([c.tokens for c in population]).to(
