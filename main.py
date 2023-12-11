@@ -1,16 +1,16 @@
-from fitness_score import BERTScore
-from genetic_algorithm import GeneticAlgorithm, MatingPoolPolicy, PopulationPolicy
-from llm import Bloom
-from parents_policy import TournamentSelection
-from variations import MixSentences, Noise, VariationsPolicy
+from evaluator import BERTSimilarityEvaluator
+from generator import LLMSimilarSentencesGenerator
+from genetic_algorithm import GeneticAlgorithm
+from llm import M0
+from population_creator import LLMPopulationCreator
 
 ga = GeneticAlgorithm(
-    llm=Bloom(),
-    population_policy=PopulationPolicy(10, 2_000),
-    parents_policy=TournamentSelection(),
-    mating_pool_policy=MatingPoolPolicy(),
-    variations_policy=VariationsPolicy(crossovers=[MixSentences()], mutators=[Noise()]),
-    fitness_score=BERTScore(),
+    llm=M0(),
+    population_creator=LLMPopulationCreator(20),
+    generator=LLMSimilarSentencesGenerator(),
+    evaluator=BERTSimilarityEvaluator(),
 )
-
-ga("TBD", iterations=10_000, topk_solutions=10)
+ga(
+    initial_prompt="Hello my friend",
+    target="Create a positive sentence greeting your friend",
+)

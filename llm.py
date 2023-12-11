@@ -1,12 +1,20 @@
-from abc import ABC, abstractclassmethod
-from typing import Iterator
+import functools
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Iterator, get_type_hints
 
 import torch
 from chromosome import Chromosome
 from torch.nn import functional as F
 
 # from transformers import BloomForCausalLM, BloomTokenizerFast
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import (
+    AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+)
+from utils import AGGREGATE_STRINGS, batch_processing
 
 
 class LLM(ABC):
@@ -14,56 +22,143 @@ class LLM(ABC):
         self.max_batch = max_batch
         self.device = device if torch.cuda.is_available() else "cpu"
 
-    @abstractclassmethod
-    def tokenizer(self, chromosomes: list[Chromosome]) -> None:
+    @abstractmethod
+    def generate_from_prompt(
+        self, prompts: list[str], params: dict[str, Any] | None = None
+    ) -> list[str]:
         ...
 
-    @abstractclassmethod
-    def decode_tokens_to_prompt(self, chromosomes: list[Chromosome]) -> None:
+    @abstractmethod
+    def __call__(
+        self, population: list[Chromosome], params: dict[str, Any] | None = None
+    ) -> list[str]:
         ...
 
-    def pad_sequences(self, tokens: list[torch.Tensor]) -> torch.Tensor:
-        max_length = max(tokens, key=lambda t: t.shape[-1]).shape[-1]
-        output_tensor = []
-        for t in tokens:
-            output_tensor.append(F.pad(t, (0, max_length - t.shape[-1]), "constant", 0))
 
-        return torch.cat(output_tensor, dim=0)
+class HuggingFaceLLM(LLM):
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizer,
+        model: Callable[[str | torch.device], PreTrainedModel],
+        max_batch: int = 10,
+        device: str = "cuda:0",
+        result_length: int = 100,
+    ) -> None:
+        super().__init__(max_batch, device)
+        self._tokenizer = tokenizer
+        self._model = model(device)
+        self.result_length = result_length
+
+    @batch_processing(AGGREGATE_STRINGS)
+    def generate_from_prompt(
+        self, prompts: list[str], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        if params is None:
+            params = {
+                "max_length": self.result_length,
+                "num_beams": 2,
+                "no_repeat_ngram_size": 2,
+                "early_stopping": True,
+            }
+
+        kwargs = {}
+        kwargs.update(params)
+        batch_tokens = self._tokenizer(prompts, return_tensors="pt", padding=True)
+        batch_tokens["input_ids"] = batch_tokens["input_ids"].to(self.device)
+        batch_tokens["attention_mask"] = batch_tokens["attention_mask"].to(self.device)
+        kwargs.update(batch_tokens)
+
+        with torch.no_grad():
+            return self._tokenizer.batch_decode(
+                self._model.generate(**kwargs),
+                skip_special_tokens=True,
+            )
+
+    def __call__(
+        self, population: list[Chromosome], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        prompts = [c.prompt for c in population]
+        return self.generate_from_prompt(prompts, params)
 
 
-class Bloom(LLM):
+class Bloom(HuggingFaceLLM):
     def __init__(
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
         result_length: int = 50,
     ) -> None:
-        super().__init__(max_batch, device)
-        self.result_length = result_length
-        self._tokenizer = AutoTokenizer.from_pretrained("bigscience/mt0-small")
-        self._model = AutoModelForSeq2SeqLM.from_pretrained(
-            "bigscience/mt0-small",
-            torch_dtype="auto",
-            device_map=self.device,
-            load_in_8bit=True,
+        super().__init__(
+            tokenizer=AutoTokenizer.from_pretrained("bigscience/bloom-560m"),
+            model=lambda device: AutoModelForCausalLM.from_pretrained(
+                "bigscience/bloom-560m",
+                torch_dtype="auto",
+                device_map=device,
+                load_in_4bit=True,
+            ),
+            max_batch=max_batch,
+            device=device,
+            result_length=result_length,
         )
 
-    def tokenizer(self, chromosomes: list[Chromosome]) -> None:
-        for c in chromosomes:
-            c.tokens = self._tokenizer.encode(
-                c.prompt, return_tensors="pt"
-            )  # ["input_ids"]
 
-    def decode_tokens_to_prompt(self, chromosomes: list[Chromosome]) -> None:
-        for c in chromosomes:
-            c.prompt = self._tokenizer.decode(c.tokens[0], skip_special_tokens=True)
-
-    def __call__(self, population: list[Chromosome]) -> list[str]:
-        batch_prompts = self.pad_sequences([c.tokens for c in population]).to(
-            self.device
+class Flan(HuggingFaceLLM):
+    def __init__(
+        self,
+        max_batch: int = 10,
+        device: str = "cuda:0",
+        result_length: int = 50,
+    ) -> None:
+        super().__init__(
+            tokenizer=AutoTokenizer.from_pretrained("google/flan-t5-small"),
+            model=lambda device: AutoModelForSeq2SeqLM.from_pretrained(
+                "google/flan-t5-small",
+                torch_dtype="auto",
+                device_map=device,
+                load_in_4bit=True,
+            ),
+            max_batch=max_batch,
+            device=device,
+            result_length=result_length,
         )
 
-        return self._tokenizer.batch_decode(
-            self._model.generate(batch_prompts, max_length=self.result_length),
-            skip_special_tokens=True,
+
+class M0(HuggingFaceLLM):
+    def __init__(
+        self,
+        max_batch: int = 10,
+        device: str = "cuda:0",
+        result_length: int = 50,
+    ) -> None:
+        super().__init__(
+            tokenizer=AutoTokenizer.from_pretrained("bigscience/mt0-small"),
+            model=lambda device: AutoModelForSeq2SeqLM.from_pretrained(
+                "bigscience/mt0-small",
+                torch_dtype="auto",
+                device_map=device,
+                load_in_4bit=True,
+            ),
+            max_batch=max_batch,
+            device=device,
+            result_length=result_length,
         )
+
+
+if __name__ == "__main__":
+    llm = M0()
+    chromosome_prompts = [
+        Chromosome(
+            "Please answer the following question: Who was the president of USA?"
+        ),
+        Chromosome(
+            "Please answer the following question: Who was the president of USA?"
+        ),
+        Chromosome(
+            "Please answer the following question: Who was the president of USA?"
+        ),
+        Chromosome(
+            "Please answer the following question: Who was the president of USA?"
+        ),
+    ]
+    solutions = llm(chromosome_prompts)
+    print(solutions)

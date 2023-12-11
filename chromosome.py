@@ -1,25 +1,10 @@
-from dataclasses import dataclass
-
-import torch
+from dataclasses import dataclass, field
 
 
 @dataclass
 class Chromosome:
-    __slots__ = ["prompt", "tokens", "solution", "score"]
-
-    def __init__(
-        self,
-        prompt: str | None = None,
-        tokens: torch.Tensor | None = None,
-        solution: str | None = None,
-        score: float | None = None,
-    ) -> None:
-        self.prompt = prompt
-        self.tokens = tokens
-        self.solution = solution
-        self.score = score
+    prompt: str | None = field(default=None)
+    score: str | None = field(default=None)
 
     def __str__(self) -> str:
-        return str(
-            {"prompt": self.prompt, "score": self.score, "solution": self.solution}
-        )
+        return str({"prompt": self.prompt, "score": self.score})
