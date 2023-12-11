@@ -23,4 +23,6 @@ class LLMPopulationCreator(PopulationCreator):
     def __call__(
         self, initial_prompt: str, target: str, generator: Generator
     ) -> list[Chromosome]:
-        return generator([Chromosome(prompt=initial_prompt)], k=self.num_samples)
+        return generator(
+            [generator.ChromosomeObject(prompt=initial_prompt)], k=self.num_samples
+        )

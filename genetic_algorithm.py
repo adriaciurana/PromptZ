@@ -1,13 +1,12 @@
 import heapq
 import logging
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from random import sample
-from typing import Any, Iterator
+from typing import Any
 
 from chromosome import Chromosome
 from evaluator import Evaluator
 from generator import Generator
+from hooks import EmptyHooks, Hooks
 from llm import LLM
 from population_creator import PopulationCreator
 from qqdm import qqdm
@@ -32,12 +31,14 @@ class GeneticAlgorithm:
         population_creator: PopulationCreator,
         generator: Generator,
         evaluator: Evaluator,
+        hooks: Hooks = EmptyHooks(),
     ) -> None:
         self._llm = llm
         self._population_creator = population_creator
 
         self._generator = generator
         self._evaluator = evaluator
+        self._hooks = hooks
 
     def _filter_population(
         self, population: list[Chromosome], max_population: int
@@ -77,19 +78,33 @@ class GeneticAlgorithm:
         self._evaluator(population)
         logging.info("Init fitness score. Done")
 
+        # Initialize hook
+        self._hooks.init(population)
+
         # 5. iterate over N iterations
-        for _ in pbar:
+        for iteration in pbar:
             # 6. Generate similar sentences
             variations = self._generator(population, k=runtime_config.generator_samples)
             population += variations
+            logging.info(f"Generated {iteration} variation.")
 
             # 7. Evalute current population
             self._evaluator(population)
+            logging.info(f"Evaluaated {iteration} population.")
+
+            # Send variations
+            self._hooks.generated(iteration, variations)
 
             # 8. Filter population
+            old_population = population
             population = self._filter_population(
                 population, runtime_config.max_population
             )
+
+            # Send filtered
+            self._hooks.filtered_by_populations(iteration, old_population, population)
+
+            logging.info(f"Filtering {iteration} population.")
 
             best_chromosome: Chromosome = max(population, key=lambda c: c.score)
             pbar.set_infos(
@@ -103,5 +118,8 @@ class GeneticAlgorithm:
         best_population = self._filter_population(
             population, runtime_config.topk_population
         )
+        logging.info("Filtering last population.")
+
+        self._hooks.results(best_population)
 
         return best_population

@@ -6,7 +6,7 @@ from chromosome import Chromosome
 from llm import LLM
 from sentence_transformers import SentenceTransformer, util
 from transformers.utils import logging
-from utils import AGGREGATE_TENSORS, batch_processing
+from utils import AGGREGATE_TENSORS, DisableLogger, batch_processing
 
 logger = logging.get_logger("transformers")
 logger.setLevel(logging.ERROR)
@@ -103,11 +103,12 @@ class BERTSimilarityEvaluator(Evaluator):
         if len(nonscored_population) == 0:
             return
 
-        with torch.no_grad():
-            prompts = self._llm(nonscored_population)
-            prompts_features = self._similarity_model_encode(prompts)
+        with DisableLogger():
+            with torch.no_grad():
+                prompts = self._llm(nonscored_population)
+                prompts_features = self._similarity_model_encode(prompts)
 
-        scores = self._similarity(self._target_features, prompts_features)
+            scores = self._similarity(self._target_features, prompts_features)
         for c, score in zip(
             nonscored_population,
             scores,

@@ -1,4 +1,5 @@
 import functools
+import logging
 from typing import TYPE_CHECKING, Any, Callable, get_type_hints
 
 import torch
@@ -51,3 +52,11 @@ def AGGREGATE_STRINGS(output: list[list[str]]) -> list[str]:
 
 def AGGREGATE_TENSORS(output: list[torch.Tensor]) -> torch.Tensor:
     return torch.cat(output, dim=0)
+
+
+class DisableLogger:
+    def __enter__(self):
+        logging.disable(logging.CRITICAL)
+
+    def __exit__(self, exit_type, exit_value, exit_traceback):
+        logging.disable(logging.NOTSET)
