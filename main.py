@@ -10,7 +10,12 @@ ga = GeneticAlgorithm(
     generator=LLMSimilarSentencesGenerator(),
     evaluator=BERTSimilarityEvaluator(),
 )
+# ga(
+#     initial_prompt="Greet me as your enemy",
+#     target="Hello my friend",
+# )
+
 ga(
-    initial_prompt="Hello my friend",
-    target="Create a positive sentence greeting your friend",
+    initial_prompt="Greet me as your friend",
+    target="Hello my enemy",
 )

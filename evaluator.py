@@ -72,9 +72,10 @@ class BERTSimilarityEvaluator(Evaluator):
 
     def init(self, llm: LLM, target: str) -> None:
         super().init(llm, target)
-        self._target_features = self._similarity_model.encode(
-            target, convert_to_tensor=True
-        )
+        with torch.no_grad():
+            self._target_features = self._similarity_model.encode(
+                target, convert_to_tensor=True
+            )
 
     def _similarity(
         self, target: torch.Tensor, solutions: torch.Tensor
@@ -105,12 +106,15 @@ class BERTSimilarityEvaluator(Evaluator):
 
         with DisableLogger():
             with torch.no_grad():
-                prompts = self._llm(nonscored_population)
-                prompts_features = self._similarity_model_encode(prompts)
+                outputs = self._llm(nonscored_population)
+                for o, c in zip(outputs, nonscored_population):
+                    c.output = o
+                
+                outputs_features = self._similarity_model_encode(outputs)
 
-            scores = self._similarity(self._target_features, prompts_features)
+            scores = self._similarity(self._target_features, outputs_features)
         for c, score in zip(
             nonscored_population,
             scores,
         ):
-            c.score = score
+            c.score = float(score)

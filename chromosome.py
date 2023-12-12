@@ -8,6 +8,7 @@ class Chromosome:
     id: int = field(default_factory=count(1).__next__, init=False)
     prompt: str | None = field(default=None)
     score: str | None = field(default=None)
+    output: str | None = field(default=None)
 
     def __str__(self) -> str:
         return str({"prompt": self.prompt, "score": self.score})

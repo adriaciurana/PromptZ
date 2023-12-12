@@ -22,6 +22,13 @@ class Generator(ABC):
     def __call__(self, population: list[Chromosome], k: int) -> list[Chromosome]:
         ...
 
+# class RouterGenerator(Generator):
+
+#     def __call__(self, population: list[Chromosome], k: int) -> list[Chromosome]:
+#         for c in population:
+#             if isinstance(c, Calvin):
+#                 self._generator[Cal]
+
 
 class LLMSimilarSentencesGenerator(Generator):
     def __init__(self) -> None:
@@ -35,11 +42,11 @@ class LLMSimilarSentencesGenerator(Generator):
             replicated_ids += k * [c.id]
             candidate_prompts += k * [
                 f"""
-                Using the following text:
+                Using the following text prompt:
                 
                 {c.prompt}
 
-                Create a similar sentence that can be better if you have to answer something related with:
+                Create a similar prompt that can be better if you have to answer the following text:
                 
                 {self._target}
             """

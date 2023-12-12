@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from chromosome import Chromosome
 
 
-class Hooks(ABC):
+class Callbacks(ABC):
     def __init__(self) -> None:
         pass
 
@@ -41,7 +41,7 @@ class Hooks(ABC):
         ...
 
 
-class EmptyHooks(Hooks):
+class EmptyCallbacks(Callbacks):
     def init(self, population: list[Chromosome]) -> None:
         ...
 
