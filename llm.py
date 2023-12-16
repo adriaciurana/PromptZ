@@ -14,7 +14,7 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizer,
 )
-from utils import AGGREGATE_STRINGS, batch_processing
+from utils import AGGREGATE_STRINGS, Register, batch_processing
 
 
 class LLM(ABC):
@@ -81,6 +81,7 @@ class HuggingFaceLLM(LLM):
         return self.generate_from_prompt(prompts, params)
 
 
+@Register("LLM")
 class Bloom(HuggingFaceLLM):
     def __init__(
         self,
@@ -102,6 +103,7 @@ class Bloom(HuggingFaceLLM):
         )
 
 
+@Register("LLM")
 class Flan(HuggingFaceLLM):
     def __init__(
         self,
@@ -123,6 +125,7 @@ class Flan(HuggingFaceLLM):
         )
 
 
+@Register("LLM")
 class M0(HuggingFaceLLM):
     def __init__(
         self,
