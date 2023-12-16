@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from itertools import count
+from typing import Any
 
 
 @dataclass
@@ -12,6 +13,13 @@ class Chromosome:
 
     def __str__(self) -> str:
         return str({"prompt": self.prompt, "score": self.score})
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, obj: dict[str, Any]) -> "Chromosome":
+        return cls(**obj)
 
 
 @dataclass
