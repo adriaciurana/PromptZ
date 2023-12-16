@@ -1,10 +1,9 @@
 import heapq
 import logging
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from random import sample
-from typing import Any, Iterator
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
+from callbacks import Callbacks, EmptyCallbacks
 from chromosome import Chromosome
 from evaluator import Evaluator
 from generator import Generator
@@ -23,8 +22,15 @@ class GeneticAlgorithm:
     class RuntimeConfig:
         max_population: int = field(default=10)
         topk_population: int = field(default=5)
-        iterations: int = field(default=10)
+        iterations: int = field(default=1000)
         generator_samples: int = field(default=10)
+
+        def to_dict(self) -> dict[str, Any]:
+            return asdict(self)
+
+        @classmethod
+        def from_dict(cls, obj: dict[str, Any]) -> "GeneticAlgorithm.RuntimeConfig":
+            return cls(**obj)
 
     def __init__(
         self,
@@ -32,16 +38,21 @@ class GeneticAlgorithm:
         population_creator: PopulationCreator,
         generator: Generator,
         evaluator: Evaluator,
+        callbacks: Callbacks = EmptyCallbacks(),
     ) -> None:
         self._llm = llm
         self._population_creator = population_creator
-        if generator not in self._population_creator.COMPATIBLE_GENERATORS:
+        if (
+            generator.__class__.__name__
+            not in self._population_creator.COMPATIBLE_GENERATORS
+        ):
             raise ValueError(
-                f"`{population_creator.__name__}` not compatible with `{generator.__name__}`."
+                f"`{population_creator.__class__.__name__}` not compatible with `{generator.__class__.__name__}`."
             )
 
         self._generator = generator
         self._evaluator = evaluator
+        self._callbacks = callbacks
 
     def _filter_population(
         self, population: list[Chromosome], max_population: int
@@ -62,7 +73,7 @@ class GeneticAlgorithm:
         runtime_config: RuntimeConfig = RuntimeConfig(),
         *args: dict[str, Any],  # TODO: TBD
         **kwargs: dict[str, Any],  # TODO: TBD
-    ) -> None:
+    ) -> list[Chromosome]:
         pbar = qqdm(range(runtime_config.iterations), total=runtime_config.iterations)
 
         # 1. init the evaluator
@@ -79,34 +90,52 @@ class GeneticAlgorithm:
 
         # 4. computed score for the initial population
         self._evaluator(population)
-        logging.info("Init fitness score. Done")
+        logging.info("Executed evaluator on the initial population. Done")
+
+        # Initialize hook
+        self._callbacks.init(population)
 
         # 5. iterate over N iterations
-        for _ in pbar:
+        for iteration in pbar:
             # 6. Generate similar sentences
             variations = self._generator(population, k=runtime_config.generator_samples)
             population += variations
+            logging.info(f"Generated {iteration} variation.")
 
-            # 7. Evalute current population
-            self._evaluator(population)
+            # 7. Evaluate current population
+            self._evaluator(variations)
+            logging.info(f"Evaluated {iteration} population.")
+
+            # Send variations
+            self._callbacks.generated(iteration, variations)
 
             # 8. Filter population
+            old_population = population
             population = self._filter_population(
                 population, runtime_config.max_population
             )
 
+            # Send filtered
+            self._callbacks.filtered_by_populations(
+                iteration, old_population, population
+            )
+
+            logging.info(f"Filtering {iteration} population.")
+
             best_chromosome: Chromosome = max(population, key=lambda c: c.score)
+            best_chromosome_dict = {
+                k: getattr(best_chromosome, k) for k in best_chromosome.show
+            }
             pbar.set_infos(
-                {
-                    "best-solution-score": float(best_chromosome.score),
-                    "best-solution-prompt": best_chromosome.prompt.strip(),
-                    "best-solution-keywords": best_chromosome.keywords,
-                },
+                {f"best-solution-{k}": v for k, v in best_chromosome_dict.items()}
             )
 
         # 9. Filter population
         best_population = self._filter_population(
             population, runtime_config.topk_population
         )
+        logging.info("Filtering last population.")
+
+        self._callbacks.results(best_population)
 
         return best_population
