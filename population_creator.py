@@ -3,6 +3,7 @@ from typing import Any
 
 from chromosome import Chromosome
 from generator import Generator
+from utils import Register
 
 
 class PopulationCreator(ABC):
@@ -16,6 +17,7 @@ class PopulationCreator(ABC):
         ...
 
 
+@Register("PopulationCreator")
 class LLMPopulationCreator(PopulationCreator):
     def __init__(self, num_samples: int) -> None:
         super().__init__(num_samples)

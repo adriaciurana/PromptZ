@@ -5,6 +5,7 @@ from classic.mating_pool import MatingPoolPolicy
 from classic.parents import ParentsPolicy
 from classic.variations import VariationsPolicy
 from llm import LLM
+from utils import Register
 
 
 class Generator(ABC):
@@ -22,6 +23,7 @@ class Generator(ABC):
     def __call__(self, population: list[Chromosome], k: int) -> list[Chromosome]:
         ...
 
+
 # class RouterGenerator(Generator):
 
 #     def __call__(self, population: list[Chromosome], k: int) -> list[Chromosome]:
@@ -30,6 +32,7 @@ class Generator(ABC):
 #                 self._generator[Cal]
 
 
+@Register("Generator")
 class LLMSimilarSentencesGenerator(Generator):
     def __init__(self) -> None:
         super().__init__()
@@ -64,6 +67,7 @@ class LLMSimilarSentencesGenerator(Generator):
         ]
 
 
+@Register("Generator")
 class ClassicGenerator(Generator):
     def ChromosomeObject(self, *args, **kwargs) -> FixedLengthChromosome:
         return FixedLengthChromosome(*args, **kwargs, mutable_mask=self._mutable_mask)

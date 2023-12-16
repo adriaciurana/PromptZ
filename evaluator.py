@@ -6,7 +6,7 @@ from chromosome import Chromosome
 from llm import LLM
 from sentence_transformers import SentenceTransformer, util
 from transformers.utils import logging
-from utils import AGGREGATE_TENSORS, DisableLogger, batch_processing
+from utils import AGGREGATE_TENSORS, DisableLogger, Register, batch_processing
 
 logger = logging.get_logger("transformers")
 logger.setLevel(logging.ERROR)
@@ -59,6 +59,7 @@ class Evaluator:
 #             c.score = score
 
 
+@Register("Evaluator")
 class BERTSimilarityEvaluator(Evaluator):
     def __init__(self, device: str = "cuda:0", max_batch: int = 10) -> None:
         super().__init__()
@@ -109,7 +110,7 @@ class BERTSimilarityEvaluator(Evaluator):
                 outputs = self._llm(nonscored_population)
                 for o, c in zip(outputs, nonscored_population):
                     c.output = o
-                
+
                 outputs_features = self._similarity_model_encode(outputs)
 
             scores = self._similarity(self._target_features, outputs_features)

@@ -1,6 +1,6 @@
 import heapq
 import logging
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from callbacks import Callbacks, EmptyCallbacks
@@ -24,6 +24,13 @@ class GeneticAlgorithm:
         topk_population: int = field(default=5)
         iterations: int = field(default=1000)
         generator_samples: int = field(default=10)
+
+        def to_dict(self) -> dict[str, Any]:
+            return asdict(self)
+
+        @classmethod
+        def from_dict(cls, obj: dict[str, Any]) -> "GeneticAlgorithm.RuntimeConfig":
+            return cls(**obj)
 
     def __init__(
         self,
@@ -59,7 +66,7 @@ class GeneticAlgorithm:
         runtime_config: RuntimeConfig = RuntimeConfig(),
         *args: dict[str, Any],  # TODO: TBD
         **kwargs: dict[str, Any],  # TODO: TBD
-    ) -> None:
+    ) -> list[Chromosome]:
         pbar = qqdm(range(runtime_config.iterations), total=runtime_config.iterations)
 
         # 1. init the evaluator

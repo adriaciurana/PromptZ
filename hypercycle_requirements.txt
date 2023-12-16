@@ -1,0 +1,7 @@
+numpy
+wonderwords
+vaderSentiment
+starlette
+git+https://github.com/hypercycle-development/pyhypercycle-aim.git#egg=pyhypercycle_aim
+requests
+pytest
