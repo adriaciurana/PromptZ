@@ -1,0 +1,1 @@
+chrome --allow-file-access-from-files \\wsl.localhost\Ubuntu-20.04\home\totolia\GA-prompt-LLM\visualizer\main.html
