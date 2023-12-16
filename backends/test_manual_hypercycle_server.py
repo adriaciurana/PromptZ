@@ -1,7 +1,7 @@
 import requests
 
 
-def test_run_endpoint(url: str = "http://localhost:4002"):
+def run_endpoint_for_testing(url: str = "http://localhost:4002"):
     # Test the prompt endpoint
     initial_prompt = "Greet me as your friend"
     target = "Hello my enemy"
@@ -46,4 +46,4 @@ def test_run_endpoint(url: str = "http://localhost:4002"):
 
 
 if __name__ == "__main__":
-    run_endpoint()
+    run_endpoint_for_testing()

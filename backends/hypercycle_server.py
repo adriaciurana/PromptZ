@@ -75,7 +75,11 @@ class HypercycleServer(SimpleServer):
                     "method": "POST",
                     "query": "",
                     "headers": "",
-                    "output": {"prompt": "simple, lively, strong", "score": 0.004},
+                    "output": {
+                        "prompt": "simple, lively, strong",
+                        "score": 0.004,
+                        "output": "long sentence",
+                    },
                 }
             ],
         },

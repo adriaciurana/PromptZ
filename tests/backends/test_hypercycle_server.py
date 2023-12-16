@@ -8,9 +8,7 @@ import requests
 PROJECT_PATH = Path(__file__).parent / "../../"
 sys.path.append(str(PROJECT_PATH))
 
-from backends.test_manual_hypercycle_server import (
-    test_run_endpoint as test_manual_run_endpoint,
-)
+from backends.test_manual_hypercycle_server import run_endpoint_for_testing
 from xprocess import ProcessStarter
 
 
@@ -34,4 +32,4 @@ def hypercycle_server(request, xprocess):
 
 
 def test_run_endpoint(hypercycle_server: str):
-    test_manual_run_endpoint(hypercycle_server)
+    run_endpoint_for_testing(hypercycle_server)
