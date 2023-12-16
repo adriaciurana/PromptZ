@@ -77,12 +77,7 @@ class Register:
 
     def __call__(self, module: Any) -> Callable:
         self.REGISTER[self._name][module.__name__] = module
-
-        @functools.wraps(wrapped=module.__init__)
-        def wrapper(*args: list[Any], **kwargs: dict[str, Any]):
-            return module(*args, **kwargs)
-
-        return wrapper
+        return module
 
 
 class CachedByTime(dict):

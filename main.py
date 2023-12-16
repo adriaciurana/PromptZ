@@ -1,5 +1,5 @@
 from evaluator import BERTSimilarityEvaluator
-from generator import LLMSimilarSentencesGenerator
+from generator import KeywordGAGenerator, LLMSimilarSentencesGenerator
 from genetic_algorithm import GeneticAlgorithm
 from llm import M0
 from population_creator import GeneratorPopulationCreator
@@ -7,7 +7,7 @@ from population_creator import GeneratorPopulationCreator
 ga = GeneticAlgorithm(
     llm=M0(),
     population_creator=GeneratorPopulationCreator(20),
-    generator=LLMSimilarSentencesGenerator(),
+    generator=KeywordGAGenerator(),
     evaluator=BERTSimilarityEvaluator(),
 )
 # ga(

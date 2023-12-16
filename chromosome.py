@@ -24,6 +24,7 @@ class Chromosome:
         return cls(**obj)
 
 
+@dataclass
 class KeywordsChromosome(Chromosome):
     show: ClassVar[list[str]] = ["keywords", "prompt", "output", "score"]
 

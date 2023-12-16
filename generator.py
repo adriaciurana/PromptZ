@@ -157,11 +157,12 @@ class KeywordGAGenerator(Generator):
     def _generate_new_generation(
         self, population: list[KeywordsChromosome], k: int
     ) -> list[KeywordsChromosome]:
-        scores = [chromosome.score.cpu().item() for chromosome in population]
+        scores = [chromosome.score for chromosome in population]
 
         # Deal with negatives.
         if min(scores) < 0:
-            scores = [score + abs(min(scores)) for score in scores]
+            min_abs_score = abs(min(scores))
+            scores = [score + min_abs_score for score in scores]
 
         # Get normalised scores.
         scores_probability = [score / sum(scores) for score in scores]
