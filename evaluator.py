@@ -26,39 +26,6 @@ class Evaluator:
         ...
 
 
-# class LLMEvaluator(Evaluator):
-#     def __init__(self) -> None:
-#         super().__init__()
-
-#     def __call__(self, population: list[Chromosome]) -> None:
-#         assert self._llm is not None and self._target is not None
-
-#         candidate_prompts: list[str] = []
-#         nonscored_population: list[Chromosome] = []
-#         for c in population:
-#             if c.score is not None:
-#                 continue
-
-#             nonscored_population.append(c)
-#             candidate_prompts.append(
-#                 f"""
-#                 Assuming that the following text is a prompt for you as a LLM.
-
-#                 {c.prompt}
-
-#                 Evaluate from 0 to 10 if the following text is close to generate the following objective:
-
-#                 {self._target}
-#             """
-#             )
-
-#         for c, score in zip(
-#             nonscored_population,
-#             self._llm.generate_from_prompt(prompts=candidate_prompts),
-#         ):
-#             c.score = score
-
-
 class BERTSimilarityEvaluator(Evaluator):
     def __init__(self, device: str = "cuda:0", max_batch: int = 10) -> None:
         super().__init__()

@@ -35,6 +35,10 @@ class GeneticAlgorithm:
     ) -> None:
         self._llm = llm
         self._population_creator = population_creator
+        if generator not in self._population_creator.COMPATIBLE_GENERATORS:
+            raise ValueError(
+                f"`{population_creator.__name__}` not compatible with `{generator.__name__}`."
+            )
 
         self._generator = generator
         self._evaluator = evaluator
@@ -96,7 +100,7 @@ class GeneticAlgorithm:
                 {
                     "best-solution-score": float(best_chromosome.score),
                     "best-solution-prompt": best_chromosome.prompt.strip(),
-                    "best-solution-keywords": best_chromosome.keywords
+                    "best-solution-keywords": best_chromosome.keywords,
                 },
             )
 

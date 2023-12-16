@@ -133,15 +133,14 @@ class M0(HuggingFaceLLM):
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("bigscience/mt0-small"),
             model=lambda device: AutoModelForSeq2SeqLM.from_pretrained(
-                "bigscience/mt0-small",
-                torch_dtype="auto",
-                device_map=device
+                "bigscience/mt0-small", torch_dtype="auto", device_map=device
             ),
             max_batch=max_batch,
             device=device,
             result_length=result_length,
         )
-        
+
+
 class Mistral(HuggingFaceLLM):
     def __init__(
         self,
@@ -150,17 +149,19 @@ class Mistral(HuggingFaceLLM):
         result_length: int = 50,
     ) -> None:
         super().__init__(
-            tokenizer=AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1"),
+            tokenizer=AutoTokenizer.from_pretrained(
+                "mistralai/Mistral-7B-Instruct-v0.1"
+            ),
             model=lambda device: AutoModelForCausalLM.from_pretrained(
                 "mistralai/Mistral-7B-Instruct-v0.1",
                 torch_dtype="auto",
-                device_map=device
+                device_map=device,
             ),
             max_batch=max_batch,
             device=device,
             result_length=result_length,
         )
-    
+
     @batch_processing(AGGREGATE_STRINGS)
     def generate_from_prompt(
         self, prompts: list[str], params: dict[str, Any] | None = None
@@ -176,7 +177,9 @@ class Mistral(HuggingFaceLLM):
         kwargs = {}
         kwargs.update(params)
         self._tokenizer.pad_token = self._tokenizer.eos_token
-        batch_tokens = self._tokenizer(prompts, return_tensors="pt", padding=True, truncation=True)
+        batch_tokens = self._tokenizer(
+            prompts, return_tensors="pt", padding=True, truncation=True
+        )
         batch_tokens["input_ids"] = batch_tokens["input_ids"].to(self.device)
         batch_tokens["attention_mask"] = batch_tokens["attention_mask"].to(self.device)
         kwargs.update(batch_tokens)
@@ -190,8 +193,14 @@ class Mistral(HuggingFaceLLM):
         self, population: list[Chromosome], params: dict[str, Any] | None = None
     ) -> list[str]:
         prompts = [c.prompt for c in population]
-        outputs = [re.sub(prompt, "", output) for prompt, output in zip(prompts, self.generate_from_prompt(prompts, params))]
+        outputs = [
+            re.sub(prompt, "", output)
+            for prompt, output in zip(
+                prompts, self.generate_from_prompt(prompts, params)
+            )
+        ]
         return [re.sub("\?\nAnswer: ", "", output) for output in outputs]
+
 
 if __name__ == "__main__":
     llm = Mistral()
