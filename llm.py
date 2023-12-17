@@ -88,6 +88,12 @@ class Bloom(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("bigscience/bloom-560m"),
@@ -99,6 +105,7 @@ class Bloom(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
+            default_params=default_params,
         )
 
 
@@ -108,6 +115,12 @@ class Flan(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("google/flan-t5-small"),
@@ -119,6 +132,7 @@ class Flan(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
+            default_params=default_params,
         )
 
 
@@ -128,6 +142,12 @@ class M0(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("bigscience/mt0-small"),
@@ -136,9 +156,8 @@ class M0(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
+            default_params=default_params,
         )
-
-        self.default_params = {}
 
 
 @Register("LLM")
@@ -147,6 +166,7 @@ class Phi2(HuggingFaceLLM):
         self,
         max_batch: int = 2,
         device: str = "cuda:0",
+        default_params: dict[str, Any] = {"max_new_tokens": 50},
     ) -> None:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -165,7 +185,7 @@ class Phi2(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
-            default_params={"max_new_tokens": 50},
+            default_params=default_params,
         )
         self._tokenizer.pad_token = self._tokenizer.eos_token
 
@@ -188,6 +208,12 @@ class Mistral(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -209,6 +235,7 @@ class Mistral(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
+            default_params=default_params,
         )
 
     def __call__(

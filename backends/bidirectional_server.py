@@ -28,7 +28,11 @@ BI_PORT = os.environ.get("BI_PORT", 4003)
 DEFAULT_RUNTIME_CONFIG = GeneticAlgorithm.RuntimeConfig().to_dict()
 CACHED_LLMS: dict[str, LLM] = CacheWithRegister(
     "LLM",
-    kwargs={"max_batch": 10, "device": "cuda:0", "result_length": 50},
+    kwargs={
+        "max_batch": 10,
+        "device": "cuda:0",
+        "default_params": {"max_new_tokens": 50},
+    },
 )
 
 define("port", type=int, default=BI_PORT)
