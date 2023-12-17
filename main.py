@@ -1,11 +1,11 @@
 from evaluator import BERTSimilarityEvaluator
 from generator import KeywordGAGenerator, LLMSimilarSentencesGenerator
 from genetic_algorithm import GeneticAlgorithm
-from llm import M0
+from llm import Mistral
 from population_creator import GeneratorPopulationCreator
 
 ga = GeneticAlgorithm(
-    llm=M0(),
+    llm=Mistral(),
     population_creator=GeneratorPopulationCreator(20),
     generator=KeywordGAGenerator(),
     evaluator=BERTSimilarityEvaluator(),

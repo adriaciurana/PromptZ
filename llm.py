@@ -12,6 +12,7 @@ from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
+    BitsAndBytesConfig,
     PreTrainedModel,
     PreTrainedTokenizer,
 )
@@ -152,14 +153,23 @@ class Mistral(HuggingFaceLLM):
         device: str = "cuda:0",
         result_length: int = 50,
     ) -> None:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+        )
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained(
                 "mistralai/Mistral-7B-Instruct-v0.1"
             ),
             model=lambda device: AutoModelForCausalLM.from_pretrained(
                 "mistralai/Mistral-7B-Instruct-v0.1",
-                torch_dtype="auto",
                 device_map=device,
+                load_in_4bit=True,
+                quantization_config=bnb_config,
+                torch_dtype=torch.bfloat16,
+                # device_map="auto",
+                trust_remote_code=True,
             ),
             max_batch=max_batch,
             device=device,
