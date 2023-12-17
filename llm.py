@@ -144,7 +144,7 @@ class M0(HuggingFaceLLM):
 class Phi2(HuggingFaceLLM):
     def __init__(
         self,
-        max_batch: int = 4,
+        max_batch: int = 2,
         device: str = "cuda:0",
     ) -> None:
         bnb_config = BitsAndBytesConfig(
@@ -167,6 +167,18 @@ class Phi2(HuggingFaceLLM):
             default_params={"max_new_tokens": 50},
         )
         self._tokenizer.pad_token = self._tokenizer.eos_token
+
+    def __call__(
+        self, population: list[Chromosome], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        prompts = [c.prompt for c in population]
+        outputs = [
+            re.sub(r"^(.|\n)*Answer:", re.sub(re.escape(prompt), "", output))
+            for prompt, output in zip(
+                prompts, self.generate_from_prompt(prompts, params)
+            )
+        ]
+        return outputs
 
 
 @Register("LLM")
@@ -208,7 +220,7 @@ class Mistral(HuggingFaceLLM):
                 prompts, self.generate_from_prompt(prompts, params)
             )
         ]
-        return [re.sub("\?\nAnswer: ", "", output) for output in outputs]
+        return [re.sub(r"\?\nAnswer: ", "", output) for output in outputs]
 
 
 if __name__ == "__main__":
