@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any
 
-from chromosome import Chromosome, KeywordsChromosome
-from generator import Generator, KeywordGAGenerator
+from chromosome import Chromosome
+from generator import Generator
 from utils import Register
 
 
@@ -31,4 +30,6 @@ class GeneratorPopulationCreator(PopulationCreator):
     def __call__(
         self, initial_prompt: str, target: str, generator: Generator
     ) -> list[Chromosome]:
-        return generator([Chromosome(prompt=initial_prompt)], k=self.num_samples)
+        return generator(
+            [Chromosome(prompt=initial_prompt)], k=self.num_samples, is_initial=True
+        )

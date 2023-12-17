@@ -1,8 +1,7 @@
+import itertools
 import random
 import re
 from abc import ABC, abstractmethod
-from collections import defaultdict
-from typing import TYPE_CHECKING
 
 import nltk
 import numpy as np
@@ -13,10 +12,6 @@ from classic.variations import VariationsPolicy
 from llm import LLM, Mistral
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
-
-if TYPE_CHECKING:
-    from generator import Generator
-
 from utils import Register
 
 
@@ -32,7 +27,9 @@ class Generator(ABC):
         self._target = target
 
     @abstractmethod
-    def __call__(self, population: list[Chromosome], k: int) -> list[Chromosome]:
+    def __call__(
+        self, population: list[Chromosome], k: int, is_initial: bool = False
+    ) -> list[Chromosome]:
         ...
 
 
@@ -41,7 +38,12 @@ class LLMSimilarSentencesGenerator(Generator):
     def __init__(self) -> None:
         super().__init__()
 
-    def __call__(self, population: list[Chromosome], k: int) -> list[Chromosome]:
+    def __call__(
+        self, population: list[Chromosome], k: int, is_initial: bool = False
+    ) -> list[Chromosome]:
+        assert (
+            is_initial and len(population) == 1
+        ), "For the first population, you need to provide only one chromosome"
         assert self._llm is not None and self._target is not None
         candidate_prompts: list[str] = []
         replicated_ids: list[int] = []
@@ -60,7 +62,9 @@ class LLMSimilarSentencesGenerator(Generator):
             ]
 
         return [
-            self.ChromosomeObject(parent_id=c_id, prompt=prompt)
+            self.ChromosomeObject(
+                parent_id=c_id, prompt=prompt, by=self.__class__.__name__
+            )
             for c_id, prompt in zip(
                 replicated_ids,
                 self._llm.generate_from_prompt(
@@ -130,25 +134,30 @@ class KeywordGAGenerator(Generator):
         )
 
         return [
-            self.ChromosomeObject(keywords=keywords, prompt=re.sub('"""', "", prompt))
+            self.ChromosomeObject(
+                keywords=keywords,
+                prompt=re.sub('"""', "", prompt),
+                by=self.__class__.__name__,
+            )
             for keywords, prompt in zip(keywords_list, prompts)
         ]
 
     def __call__(
-        self, population: list[KeywordsChromosome], k: int
+        self, population: list[KeywordsChromosome], k: int, is_initial: bool = False
     ) -> list[KeywordsChromosome]:
         assert self._llm is not None and self._target is not None
 
         # Set initial prompt.
         if self._input_vocab is None:
-            assert len(population) == 1, "The initial population has to be equal to 1."
             self.set_input_vocab(
                 initial_prompt=population[0].prompt, target=self._target
             )
 
+        if is_initial:
+            assert len(population) == 1, "The initial population has to be equal to 1."
             return self._generate_from_scratch(k=k)
 
-        # Other, generate new population
+        # Otherwise, generate new population
         assert all(
             isinstance(c, KeywordsChromosome) for c in population
         ), "The next population can only be `KeywordsChromosome` type."
@@ -195,7 +204,9 @@ class KeywordGAGenerator(Generator):
             prompts=initial_prompt,
             params={"max_new_tokens": 40, "do_sample": True, "top_k": 50},
         )
-        return self.ChromosomeObject(keywords=keywords, prompt=prompt[0])
+        return self.ChromosomeObject(
+            keywords=keywords, prompt=prompt[0], by=self.__class__.__name__
+        )
 
     def _keywords_to_prompt(self, keywords_list: list[list[str]]) -> list[str]:
         initial_prompts: list[str] = []
@@ -307,6 +318,59 @@ class KeywordGAGenerator(Generator):
 
 
 @Register("Generator")
+class ComposerGenerator(Generator):
+    def __init__(self, generators: list[tuple[Generator, float]] | list[Generator]):
+        generators_dict: dict[str, tuple[Generator, float]]
+        if isinstance(generators[0], Generator):
+            generators_dict = {
+                g.__class__.__name__: (g, 1.0 / len(generators))
+                for g in generators.items()
+            }
+
+        else:
+            w_sum = sum(w for _, w in generators)
+            generators_dict = {
+                g.__class__.__name__: (g, w / w_sum) for g, w in generators
+            }
+
+        self._generators = generators_dict
+
+    @classmethod
+    def _by_generator(cls, chromosome: Chromosome) -> str:
+        return chromosome.by
+
+    def init(self, llm: LLM, target: str) -> None:
+        super().init(llm, target)
+        for g, _ in self._generators.values():
+            g.init(llm, target)
+
+    def __call__(
+        self, population: list[Chromosome], k: int, is_initial: bool = False
+    ) -> list[Chromosome]:
+        if is_initial:
+            init_population: list[Chromosome] = []
+            for _, (generator, weight) in self._generators.items():
+                init_population += generator(
+                    population, k=int(weight * k), is_initial=True
+                )
+
+            return init_population
+
+        else:
+            new_variations: list[Chromosome] = []
+
+            for key_group, population_group in itertools.groupby(
+                population, self._by_generator
+            ):
+                generator, weight = self._generators[key_group]
+                new_variations += generator(
+                    list(population_group), k=int(weight * k), is_initial=True
+                )
+
+            return new_variations
+
+
+@Register("Generator")
 class ClassicGenerator(Generator):
     def ChromosomeObject(self, *args, **kwargs) -> FixedLengthChromosome:
         return FixedLengthChromosome(*args, **kwargs, mutable_mask=self._mutable_mask)
@@ -334,4 +398,4 @@ class ClassicGenerator(Generator):
         pair_parents = self._mating_pool_policy(best_parents, k=k)
 
         # 3. Variations
-        return list(self._variations_policy(pair_parents))
+        return list(self._variations_policy(pair_parents, by=self.__class__.__name__))
