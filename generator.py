@@ -41,10 +41,12 @@ class LLMSimilarSentencesGenerator(Generator):
     def __call__(
         self, population: list[Chromosome], k: int, is_initial: bool = False
     ) -> list[Chromosome]:
-        assert (
-            is_initial and len(population) == 1
-        ), "For the first population, you need to provide only one chromosome"
+        if is_initial:
+            assert (
+                len(population) == 1
+            ), "For the first population, you need to provide only one chromosome"
         assert self._llm is not None and self._target is not None
+
         candidate_prompts: list[str] = []
         replicated_ids: list[int] = []
         for c in population:

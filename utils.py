@@ -101,9 +101,14 @@ class CachedByTime(dict):
     def _check_cache(self):
         while True:
             current_time: int = time.time()
+            to_remove: list[str] = []
             for key in self:
                 if (current_time - self._last_use[key]) > self.max_time:
-                    del self[key]
+                    to_remove.append(key)
+
+            for key in to_remove:
+                del self[key]
+
             end_time = time.time()
 
             elapsed_time = end_time - current_time
