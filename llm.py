@@ -40,27 +40,30 @@ class HuggingFaceLLM(LLM):
         model: Callable[[str | torch.device], PreTrainedModel],
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 100,
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         super().__init__(max_batch, device)
         self._tokenizer = tokenizer
         self._model = model(device)
-        self.result_length = result_length
+
+        self._default_params = default_params
 
     @batch_processing(AGGREGATE_STRINGS)
     def generate_from_prompt(
         self, prompts: list[str], params: dict[str, Any] | None = None
     ) -> list[str]:
         if params is None:
-            params = {
-                "max_length": self.result_length,
-                "num_beams": 2,
-                "no_repeat_ngram_size": 2,
-                "early_stopping": True,
-            }
+            params = {}
+            params.update(self._default_params)
 
         kwargs = {}
         kwargs.update(params)
+
         batch_tokens = self._tokenizer(prompts, return_tensors="pt", padding=True)
         batch_tokens["input_ids"] = batch_tokens["input_ids"].to(self.device)
         batch_tokens["attention_mask"] = batch_tokens["attention_mask"].to(self.device)
@@ -84,7 +87,6 @@ class Bloom(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 50,
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("bigscience/bloom-560m"),
@@ -96,7 +98,6 @@ class Bloom(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
-            result_length=result_length,
         )
 
 
@@ -106,7 +107,6 @@ class Flan(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 50,
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("google/flan-t5-small"),
@@ -118,7 +118,6 @@ class Flan(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
-            result_length=result_length,
         )
 
 
@@ -128,7 +127,6 @@ class M0(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 50,
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("bigscience/mt0-small"),
@@ -137,17 +135,17 @@ class M0(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
-            result_length=result_length,
         )
+
+        self.default_params = {}
 
 
 @Register("LLM")
 class Phi2(HuggingFaceLLM):
     def __init__(
         self,
-        max_batch: int = 1,
+        max_batch: int = 4,
         device: str = "cuda:0",
-        result_length: int = 50,
     ) -> None:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -166,7 +164,7 @@ class Phi2(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
-            result_length=result_length,
+            default_params={"max_new_tokens": 50},
         )
         self._tokenizer.pad_token = self._tokenizer.eos_token
 
@@ -177,7 +175,6 @@ class Mistral(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 50,
     ) -> None:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -199,7 +196,6 @@ class Mistral(HuggingFaceLLM):
             ),
             max_batch=max_batch,
             device=device,
-            result_length=result_length,
         )
 
     def __call__(
