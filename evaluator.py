@@ -1,18 +1,17 @@
-import logging
 from abc import ABC, abstractmethod
 
 import torch
 from chromosome import Chromosome
 from llm import LLM
 from sentence_transformers import SentenceTransformer, util
-from transformers.utils import logging
+from transformers.utils import logging as logging_t
 from utils import AGGREGATE_TENSORS, DisableLogger, Register, batch_processing
 
-logger = logging.get_logger("transformers")
-logger.setLevel(logging.ERROR)
+logger = logging_t.get_logger("transformers")
+logger.setLevel(logging_t.ERROR)
 
 
-class Evaluator:
+class Evaluator(ABC):
     def __init__(self) -> None:
         self._llm: LLM | None = None
         self._target: LLM | None = None
@@ -24,39 +23,6 @@ class Evaluator:
     @abstractmethod
     def __call__(self, population: list[Chromosome]) -> None:
         ...
-
-
-# class LLMEvaluator(Evaluator):
-#     def __init__(self) -> None:
-#         super().__init__()
-
-#     def __call__(self, population: list[Chromosome]) -> None:
-#         assert self._llm is not None and self._target is not None
-
-#         candidate_prompts: list[str] = []
-#         nonscored_population: list[Chromosome] = []
-#         for c in population:
-#             if c.score is not None:
-#                 continue
-
-#             nonscored_population.append(c)
-#             candidate_prompts.append(
-#                 f"""
-#                 Assuming that the following text is a prompt for you as a LLM.
-
-#                 {c.prompt}
-
-#                 Evaluate from 0 to 10 if the following text is close to generate the following objective:
-
-#                 {self._target}
-#             """
-#             )
-
-#         for c, score in zip(
-#             nonscored_population,
-#             self._llm.generate_from_prompt(prompts=candidate_prompts),
-#         ):
-#             c.score = score
 
 
 @Register("Evaluator")

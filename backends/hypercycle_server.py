@@ -11,11 +11,11 @@ from typing import Any
 sys.path.append(str(Path(__file__).parent / "../"))
 
 from chromosome import Chromosome
-from evaluator import BERTSimilarityEvaluator, Evaluator
-from generator import Generator, LLMSimilarSentencesGenerator
+from evaluator import Evaluator
+from generator import Generator
 from genetic_algorithm import GeneticAlgorithm
 from llm import LLM
-from population_creator import LLMPopulationCreator, PopulationCreator
+from population_creator import PopulationCreator
 from pyhypercycle_aim import JSONResponseCORS, SimpleServer, aim_uri
 from utils import CacheWithRegister, Register
 
@@ -23,7 +23,11 @@ PORT = os.environ.get("PORT", 4002)
 DEFAULT_RUNTIME_CONFIG = GeneticAlgorithm.RuntimeConfig().to_dict()
 CACHED_LLMS: dict[str, LLM] = CacheWithRegister(
     "LLM",
-    kwargs={"max_batch": 10, "device": "cuda:0", "result_length": 50},
+    kwargs={
+        "max_batch": 10,
+        "device": "cuda:0",
+        "default_params": {"max_new_tokens": 50},
+    },
 )
 
 
@@ -58,7 +62,7 @@ class HypercycleServer(SimpleServer):
                         },
                         "llm": "M0",
                         "population_creator": {
-                            "name": "LLMPopulationCreator",
+                            "name": "GeneratorPopulationCreator",
                             "params": {"num_samples": 10},
                         },
                         "generator": {

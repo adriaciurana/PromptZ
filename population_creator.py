@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Any
 
 from chromosome import Chromosome
 from generator import Generator
@@ -11,14 +10,12 @@ class PopulationCreator(ABC):
         self.num_samples = num_samples
 
     @abstractmethod
-    def __call__(
-        self, initial_prompt: str, target: str, generator: Generator
-    ) -> list[Chromosome]:
+    def __call__(self, initial_prompt: str, generator: Generator) -> list[Chromosome]:
         ...
 
 
 @Register("PopulationCreator")
-class LLMPopulationCreator(PopulationCreator):
+class GeneratorPopulationCreator(PopulationCreator):
     def __init__(self, num_samples: int) -> None:
         super().__init__(num_samples)
 
@@ -26,5 +23,5 @@ class LLMPopulationCreator(PopulationCreator):
         self, initial_prompt: str, target: str, generator: Generator
     ) -> list[Chromosome]:
         return generator(
-            [generator.ChromosomeObject(prompt=initial_prompt)], k=self.num_samples
+            [Chromosome(prompt=initial_prompt)], k=self.num_samples, is_initial=True
         )

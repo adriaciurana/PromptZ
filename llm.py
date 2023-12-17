@@ -1,16 +1,15 @@
-import functools
+import re
+import platform
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Iterator, get_type_hints
+from typing import Any, Callable
 
 import torch
 from chromosome import Chromosome
-from torch.nn import functional as F
-
-# from transformers import BloomForCausalLM, BloomTokenizerFast
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
+    BitsAndBytesConfig,
     PreTrainedModel,
     PreTrainedTokenizer,
 )
@@ -42,32 +41,34 @@ class HuggingFaceLLM(LLM):
         model: Callable[[str | torch.device], PreTrainedModel],
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 100,
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         super().__init__(max_batch, device)
         self._tokenizer = tokenizer
         self._model = model(device)
-        self.result_length = result_length
+
+        self._default_params = default_params
 
     @batch_processing(AGGREGATE_STRINGS)
     def generate_from_prompt(
         self, prompts: list[str], params: dict[str, Any] | None = None
     ) -> list[str]:
         if params is None:
-            params = {
-                "max_length": self.result_length,
-                "num_beams": 2,
-                "no_repeat_ngram_size": 2,
-                "early_stopping": True,
-            }
+            params = {}
+            params.update(self._default_params)
 
         kwargs = {}
         kwargs.update(params)
+
         batch_tokens = self._tokenizer(prompts, return_tensors="pt", padding=True)
         batch_tokens["input_ids"] = batch_tokens["input_ids"].to(self.device)
         batch_tokens["attention_mask"] = batch_tokens["attention_mask"].to(self.device)
         kwargs.update(batch_tokens)
-
         with torch.no_grad():
             return self._tokenizer.batch_decode(
                 self._model.generate(**kwargs),
@@ -87,7 +88,12 @@ class Bloom(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 50,
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("bigscience/bloom-560m"),
@@ -95,11 +101,11 @@ class Bloom(HuggingFaceLLM):
                 "bigscience/bloom-560m",
                 torch_dtype="auto",
                 device_map=device,
-                load_in_4bit=True,
+                load_in_4bit=True if platform.system() != "Windows" else False,
             ),
             max_batch=max_batch,
             device=device,
-            result_length=result_length,
+            default_params=default_params,
         )
 
 
@@ -109,7 +115,12 @@ class Flan(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 50,
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("google/flan-t5-small"),
@@ -117,11 +128,11 @@ class Flan(HuggingFaceLLM):
                 "google/flan-t5-small",
                 torch_dtype="auto",
                 device_map=device,
-                load_in_4bit=True,
+                load_in_4bit=True if platform.system() != "Windows" else False,
             ),
             max_batch=max_batch,
             device=device,
-            result_length=result_length,
+            default_params=default_params,
         )
 
 
@@ -131,36 +142,129 @@ class M0(HuggingFaceLLM):
         self,
         max_batch: int = 10,
         device: str = "cuda:0",
-        result_length: int = 50,
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
     ) -> None:
         super().__init__(
             tokenizer=AutoTokenizer.from_pretrained("bigscience/mt0-small"),
             model=lambda device: AutoModelForSeq2SeqLM.from_pretrained(
-                "bigscience/mt0-small",
-                torch_dtype="auto",
-                device_map=device,
-                load_in_4bit=True,
+                "bigscience/mt0-small", torch_dtype="auto", device_map=device
             ),
             max_batch=max_batch,
             device=device,
-            result_length=result_length,
+            default_params=default_params,
         )
 
 
+@Register("LLM")
+class Phi2(HuggingFaceLLM):
+    def __init__(
+        self,
+        max_batch: int = 2,
+        device: str = "cuda:0",
+        default_params: dict[str, Any] = {"max_new_tokens": 50},
+    ) -> None:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+        )
+        super().__init__(
+            tokenizer=AutoTokenizer.from_pretrained("microsoft/phi-2"),
+            model=lambda device: AutoModelForCausalLM.from_pretrained(
+                "microsoft/phi-2",
+                device_map=device,
+                load_in_4bit=True if platform.system() != "Windows" else False,
+                quantization_config=bnb_config if platform.system() != "Windows" else None,
+                torch_dtype=torch.bfloat16,
+                trust_remote_code=True,
+            ),
+            max_batch=max_batch,
+            device=device,
+            default_params=default_params,
+        )
+        self._tokenizer.pad_token = self._tokenizer.eos_token
+
+    def __call__(
+        self, population: list[Chromosome], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        prompts = [c.prompt for c in population]
+        outputs = [
+            re.sub(r"^(.|\n)*Answer:", "", re.sub(re.escape(prompt), "", output))
+            for prompt, output in zip(
+                prompts, self.generate_from_prompt(prompts, params)
+            )
+        ]
+        return outputs
+
+
+@Register("LLM")
+class Mistral(HuggingFaceLLM):
+    def __init__(
+        self,
+        max_batch: int = 10,
+        device: str = "cuda:0",
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 50,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
+    ) -> None:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+        )
+        super().__init__(
+            tokenizer=AutoTokenizer.from_pretrained(
+                "mistralai/Mistral-7B-Instruct-v0.1"
+            ),
+            model=lambda device: AutoModelForCausalLM.from_pretrained(
+                "mistralai/Mistral-7B-Instruct-v0.1",
+                device_map=device,
+                load_in_4bit=True if platform.system() != "Windows" else False,
+                quantization_config=bnb_config if platform.system() != "Windows" else None,
+                torch_dtype=torch.bfloat16,
+                # device_map="auto",
+                trust_remote_code=True,
+            ),
+            max_batch=max_batch,
+            device=device,
+            default_params=default_params,
+        )
+
+    def __call__(
+        self, population: list[Chromosome], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        prompts = [c.prompt for c in population]
+        outputs = [
+            re.sub(prompt, "", output)
+            for prompt, output in zip(
+                prompts, self.generate_from_prompt(prompts, params)
+            )
+        ]
+        return [re.sub(r"\?\nAnswer: ", "", output) for output in outputs]
+
+
 if __name__ == "__main__":
-    llm = M0()
+    llm = Mistral()
     chromosome_prompts = [
         Chromosome(
-            "Please answer the following question: Who was the president of USA?"
+            prompt="Please answer the following question: Who was the president of USA?"
         ),
         Chromosome(
-            "Please answer the following question: Who was the president of USA?"
+            prompt="Please answer the following question: Who was the president of USA?"
         ),
         Chromosome(
-            "Please answer the following question: Who was the president of USA?"
+            prompt="Please answer the following question: Who was the president of USA?"
         ),
         Chromosome(
-            "Please answer the following question: Who was the president of USA?"
+            prompt="Please answer the following question: Who was the president of USA?"
         ),
     ]
     solutions = llm(chromosome_prompts)

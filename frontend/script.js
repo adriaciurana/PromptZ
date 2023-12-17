@@ -7,7 +7,7 @@ var DEFAULT_PARAMS = {
     },
     "llm": "M0",
     "population_creator": {
-        "name": "LLMPopulationCreator",
+        "name": "GeneratorPopulationCreator",
         "params": {"num_samples": 3},
     },
     "generator": {
