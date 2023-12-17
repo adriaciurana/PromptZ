@@ -42,13 +42,6 @@ class GeneticAlgorithm:
     ) -> None:
         self._llm = llm
         self._population_creator = population_creator
-        if (
-            generator.__class__.__name__
-            not in self._population_creator.COMPATIBLE_GENERATORS
-        ):
-            raise ValueError(
-                f"`{population_creator.__class__.__name__}` not compatible with `{generator.__class__.__name__}`."
-            )
 
         self._generator = generator
         self._evaluator = evaluator

@@ -6,8 +6,6 @@ from utils import Register
 
 
 class PopulationCreator(ABC):
-    COMPATIBLE_GENERATORS: list[str] = []
-
     def __init__(self, num_samples: int) -> None:
         self.num_samples = num_samples
 
@@ -18,12 +16,6 @@ class PopulationCreator(ABC):
 
 @Register("PopulationCreator")
 class GeneratorPopulationCreator(PopulationCreator):
-    COMPATIBLE_GENERATORS: list[str] = [
-        "LLMSimilarSentencesGenerator",
-        "KeywordGAGenerator",
-        "ClassicGenerator",
-    ]
-
     def __init__(self, num_samples: int) -> None:
         super().__init__(num_samples)
 

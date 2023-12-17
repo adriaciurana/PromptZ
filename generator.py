@@ -62,9 +62,7 @@ class LLMSimilarSentencesGenerator(Generator):
             ]
 
         return [
-            self.ChromosomeObject(
-                parent_id=c_id, prompt=prompt, by=self.__class__.__name__
-            )
+            self.ChromosomeObject(parent_id=c_id, prompt=prompt, by=id(self.__class__))
             for c_id, prompt in zip(
                 replicated_ids,
                 self._llm.generate_from_prompt(
@@ -137,7 +135,7 @@ class KeywordGAGenerator(Generator):
             self.ChromosomeObject(
                 keywords=keywords,
                 prompt=re.sub('"""', "", prompt),
-                by=self.__class__.__name__,
+                by=id(self.__class__),
             )
             for keywords, prompt in zip(keywords_list, prompts)
         ]
@@ -205,7 +203,7 @@ class KeywordGAGenerator(Generator):
             params={"max_new_tokens": 40, "do_sample": True, "top_k": 50},
         )
         return self.ChromosomeObject(
-            keywords=keywords, prompt=prompt[0], by=self.__class__.__name__
+            keywords=keywords, prompt=prompt[0], by=id(self.__class__)
         )
 
     def _keywords_to_prompt(self, keywords_list: list[list[str]]) -> list[str]:
@@ -320,18 +318,15 @@ class KeywordGAGenerator(Generator):
 @Register("Generator")
 class ComposerGenerator(Generator):
     def __init__(self, generators: list[tuple[Generator, float]] | list[Generator]):
-        generators_dict: dict[str, tuple[Generator, float]]
+        generators_dict: dict[int, tuple[Generator, float]]
         if isinstance(generators[0], Generator):
             generators_dict = {
-                g.__class__.__name__: (g, 1.0 / len(generators))
-                for g in generators.items()
+                id(g.__class__): (g, 1.0 / len(generators)) for g in generators.items()
             }
 
         else:
             w_sum = sum(w for _, w in generators)
-            generators_dict = {
-                g.__class__.__name__: (g, w / w_sum) for g, w in generators
-            }
+            generators_dict = {id(g.__class__): (g, w / w_sum) for g, w in generators}
 
         self._generators = generators_dict
 
@@ -398,4 +393,4 @@ class ClassicGenerator(Generator):
         pair_parents = self._mating_pool_policy(best_parents, k=k)
 
         # 3. Variations
-        return list(self._variations_policy(pair_parents, by=self.__class__.__name__))
+        return list(self._variations_policy(pair_parents, by=id(self.__class__)))

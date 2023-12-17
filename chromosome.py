@@ -7,7 +7,7 @@ from typing import Any, ClassVar
 class Chromosome:
     show: ClassVar[list[str]] = ["prompt", "output", "score"]
 
-    by: str = field(default="")  # which generator
+    by: int = field(default="")  # which generator (id) creates this chromosome
     parent_id: int | tuple[int, int] = field(default=0)  # 0 = root
     id: int = field(default_factory=count(1).__next__, init=False)
     prompt: str | None = field(default=None)
