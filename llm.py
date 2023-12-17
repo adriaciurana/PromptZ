@@ -145,7 +145,7 @@ class M0(HuggingFaceLLM):
 class Phi2(HuggingFaceLLM):
     def __init__(
         self,
-        max_batch: int = 10,
+        max_batch: int = 1,
         device: str = "cuda:0",
         result_length: int = 50,
     ) -> None:
@@ -168,6 +168,7 @@ class Phi2(HuggingFaceLLM):
             device=device,
             result_length=result_length,
         )
+        self._tokenizer.pad_token = self._tokenizer.eos_token
 
 
 @Register("LLM")
