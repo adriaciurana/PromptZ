@@ -1,4 +1,5 @@
 import re
+import platform
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 
@@ -94,7 +95,7 @@ class Bloom(HuggingFaceLLM):
                 "bigscience/bloom-560m",
                 torch_dtype="auto",
                 device_map=device,
-                load_in_4bit=True,
+                load_in_4bit=True if platform.system() != "Windows" else False,
             ),
             max_batch=max_batch,
             device=device,
@@ -114,7 +115,7 @@ class Flan(HuggingFaceLLM):
                 "google/flan-t5-small",
                 torch_dtype="auto",
                 device_map=device,
-                load_in_4bit=True,
+                load_in_4bit=True if platform.system() != "Windows" else False,
             ),
             max_batch=max_batch,
             device=device,
@@ -157,8 +158,8 @@ class Phi2(HuggingFaceLLM):
             model=lambda device: AutoModelForCausalLM.from_pretrained(
                 "microsoft/phi-2",
                 device_map=device,
-                load_in_4bit=True,
-                quantization_config=bnb_config,
+                load_in_4bit=True if platform.system() != "Windows" else False,
+                quantization_config=bnb_config if platform.system() != "Windows" else None,
                 torch_dtype=torch.bfloat16,
                 trust_remote_code=True,
             ),
@@ -200,8 +201,8 @@ class Mistral(HuggingFaceLLM):
             model=lambda device: AutoModelForCausalLM.from_pretrained(
                 "mistralai/Mistral-7B-Instruct-v0.1",
                 device_map=device,
-                load_in_4bit=True,
-                quantization_config=bnb_config,
+                load_in_4bit=True if platform.system() != "Windows" else False,
+                quantization_config=bnb_config if platform.system() != "Windows" else None,
                 torch_dtype=torch.bfloat16,
                 # device_map="auto",
                 trust_remote_code=True,
