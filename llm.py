@@ -173,7 +173,7 @@ class Phi2(HuggingFaceLLM):
     ) -> list[str]:
         prompts = [c.prompt for c in population]
         outputs = [
-            re.sub(r"^(.|\n)*Answer:", re.sub(re.escape(prompt), "", output))
+            re.sub(r"^(.|\n)*Answer:", "", re.sub(re.escape(prompt), "", output))
             for prompt, output in zip(
                 prompts, self.generate_from_prompt(prompts, params)
             )
