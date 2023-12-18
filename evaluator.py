@@ -1,4 +1,5 @@
 import gc
+import re
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -210,10 +211,14 @@ class ObjectiveBasedEvaluator(Evaluator):
                 for output, c in zip(outputs, nonscored_population):
                     c.output = output
 
+                    cleaned_target = re.sub("[^A-Za-z0-9 ]+", "", self._target).lower()
+                    cleaned_prompt = re.sub("[^A-Za-z0-9 ]+", "", c.prompt).lower()
+                    cleaned_output = re.sub("[^A-Za-z0-9 ]+", "", c.output).lower()
+
                     if (
-                        self._target not in c.prompt
-                        and c.output not in c.prompt
-                        and c.prompt not in c.output
+                        cleaned_target not in cleaned_prompt
+                        and cleaned_output not in cleaned_prompt
+                        and cleaned_prompt not in cleaned_output
                     ) or self._llm.IS_NAIVE:
                         valid_outputs.append(output)
                         valid_nonscored_population.append(c)
