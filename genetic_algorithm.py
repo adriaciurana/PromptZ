@@ -112,7 +112,7 @@ class GeneticAlgorithm:
             self._callbacks.filtered_by_populations(
                 iteration, old_population, population
             )
-
+            
             logging.info(f"Filtering {iteration} population.")
 
             best_chromosome: Chromosome = max(population, key=lambda c: c.score)
