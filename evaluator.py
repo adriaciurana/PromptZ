@@ -1,3 +1,4 @@
+import gc
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -150,32 +151,35 @@ class BERTSimilarityEvaluator(SimilarityEvaluator):
 
 @Register("Evaluator")
 class ObjectiveBasedEvaluator(Evaluator):
-    def __init__(
-        self, similarity_evaluator: SimilarityEvaluator, non_blackbox_llm: LLM, k: int
-    ) -> None:
+    def __init__(self, similarity_evaluator: SimilarityEvaluator, k: int) -> None:
         super().__init__()
         self._similarity_evaluator = similarity_evaluator
-        self._non_blackbox_llm = non_blackbox_llm
         self._k = k
+        self._target_features: torch.Tensor | None = None
 
-    def init(self, llm: LLM, target: str) -> None:
-        super().init(llm, target)
-
+    def prepare_target(self, non_blackbox_llm: LLM, target: str) -> None:
         # 1. Compute the LLM options
         prompt = f"""Given the following objective: 
         {target}
         Generate an answer.
         """
-        outputs = self._non_blackbox_llm.generate_from_prompt(self._k * [prompt])
+        outputs = non_blackbox_llm.generate_from_prompt(self._k * [prompt])
 
         # 2. Compute the features
         self._target_features = self._similarity_evaluator.get_features(outputs)
+
+    def init(self, llm: LLM, target: str) -> None:
+        super().init(llm, target)
+
+        assert (
+            self._target_features is not None
+        ), "Target features are not initialized, please run `prepare_target` before the GA."
 
     def _similarity(
         self, target: torch.Tensor, solutions: torch.Tensor
     ) -> torch.Tensor:
         # Take the best solution w.r.t all the targets
-        # Target: 1 x dim
+        # Target: M x dim
         # Solutions: N x dim
         return torch.max(util.pytorch_cos_sim(target, solutions), dim=0)[0]
 
