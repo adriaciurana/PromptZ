@@ -1,5 +1,5 @@
-import re
 import platform
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 
@@ -27,11 +27,29 @@ class LLM(ABC):
     ) -> list[str]:
         ...
 
-    @abstractmethod
     def __call__(
         self, population: list[Chromosome], params: dict[str, Any] | None = None
     ) -> list[str]:
-        ...
+        prompts = [c.prompt for c in population]
+        return self.generate_from_prompt(prompts, params)
+
+
+@Register("LLM")
+class MockLLM(LLM):
+    def __init__(
+        self,
+        max_batch: int = 10,
+        device: str = "cuda:0",
+        *args: tuple[Any, ...],
+        **kwargs: dict[str, Any]
+    ) -> None:
+        super().__init__(max_batch=max_batch, device=device)
+
+    @batch_processing(AGGREGATE_STRINGS)
+    def generate_from_prompt(
+        self, prompts: list[str], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        return [p for p in prompts]  # just copy :)
 
 
 class HuggingFaceLLM(LLM):
@@ -74,12 +92,6 @@ class HuggingFaceLLM(LLM):
                 self._model.generate(**kwargs),
                 skip_special_tokens=True,
             )
-
-    def __call__(
-        self, population: list[Chromosome], params: dict[str, Any] | None = None
-    ) -> list[str]:
-        prompts = [c.prompt for c in population]
-        return self.generate_from_prompt(prompts, params)
 
 
 @Register("LLM")
@@ -179,7 +191,9 @@ class Phi2(HuggingFaceLLM):
                 "microsoft/phi-2",
                 device_map=device,
                 load_in_4bit=True if platform.system() != "Windows" else False,
-                quantization_config=bnb_config if platform.system() != "Windows" else None,
+                quantization_config=bnb_config
+                if platform.system() != "Windows"
+                else None,
                 torch_dtype=torch.bfloat16,
                 trust_remote_code=True,
             ),
@@ -228,7 +242,9 @@ class Mistral(HuggingFaceLLM):
                 "mistralai/Mistral-7B-Instruct-v0.1",
                 device_map=device,
                 load_in_4bit=True if platform.system() != "Windows" else False,
-                quantization_config=bnb_config if platform.system() != "Windows" else None,
+                quantization_config=bnb_config
+                if platform.system() != "Windows"
+                else None,
                 torch_dtype=torch.bfloat16,
                 # device_map="auto",
                 trust_remote_code=True,

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+import numpy as np
 import torch
 from chromosome import Chromosome
 from llm import LLM
@@ -23,6 +24,34 @@ class Evaluator(ABC):
     @abstractmethod
     def __call__(self, population: list[Chromosome]) -> None:
         ...
+
+
+@Register("Evaluator")
+class MockEvaluator(Evaluator):
+    def __init__(self, device: str = "cuda:0", max_batch: int = 10) -> None:
+        super().__init__()
+
+        self.device = device if torch.cuda.is_available() else "cpu"
+        self.max_batch = max_batch
+
+    def init(self, llm: LLM, target: str) -> None:
+        super().init(llm, target)
+
+    def __call__(self, population: list[Chromosome]) -> None:
+        assert self._llm is not None
+        assert self._target is not None
+
+        nonscored_population: list[Chromosome] = []
+        for c in population:
+            if c.score is None:
+                c.output = "Mock output for: " + c.prompt
+                nonscored_population.append(c)
+
+        if len(nonscored_population) == 0:
+            return
+
+        for c in nonscored_population:
+            c.score = 2 * np.random.rand() - 1  # Simulate cosine similarity
 
 
 @Register("Evaluator")
