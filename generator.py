@@ -569,13 +569,19 @@ class ComposerGenerator(Generator):
 
         else:
             new_variations: list[Chromosome] = []
+            for key_group, population_group in itertools.groupby(
+                population, self._by_generator
+            ):
+                print("+" * 100)
+                print(key_group)
+                print("+" * 100)
 
             for key_group, population_group in itertools.groupby(
                 population, self._by_generator
             ):
                 generator, weight = self._generators[key_group]
                 new_variations += generator(
-                    list(population_group), k=int(weight * k), is_initial=True
+                    list(population_group), k=int(weight * k), is_initial=False
                 )
 
             return new_variations
