@@ -100,17 +100,47 @@ class BERTSimilarityEvaluator(Evaluator):
         if len(nonscored_population) == 0:
             return
 
+        # invalid: contains:
+        #   - target inside prompt.
+        #   - output inside prompt.
+        #   - prompt inside output.
+        valid_nonscored_population: list[Chromosome] = []
+        invalid_nonscored_population: list[Chromosome] = []
+        valid_outputs: list[str] = []
         with DisableLogger():
             with torch.no_grad():
                 outputs = self._llm(nonscored_population)
-                for o, c in zip(outputs, nonscored_population):
-                    c.output = o
+                for output, c in zip(outputs, nonscored_population):
+                    c.output = output
 
-                outputs_features = self._similarity_model_encode(outputs)
+                    if (
+                        self._target not in c.prompt
+                        and c.output not in c.prompt
+                        and c.prompt not in c.output
+                    ) or self._llm.IS_NAIVE:
+                        valid_outputs.append(output)
+                        valid_nonscored_population.append(c)
 
-            scores = self._similarity(self._target_features, outputs_features)
+                    else:
+                        invalid_nonscored_population.append(c)
+
+                if len(valid_outputs) > 0:
+                    valid_outputs_features = self._similarity_model_encode(
+                        valid_outputs
+                    )
+
+                    valid_scores = self._similarity(
+                        self._target_features, valid_outputs_features
+                    )
+
+                else:
+                    valid_scores: list[torch.Tensor] = []
+
+        for c in invalid_nonscored_population:
+            c.score = -1.0
+
         for c, score in zip(
-            nonscored_population,
-            scores,
+            valid_nonscored_population,
+            valid_scores,
         ):
             c.score = float(score)

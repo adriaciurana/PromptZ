@@ -17,6 +17,8 @@ from utils import AGGREGATE_STRINGS, Register, batch_processing
 
 
 class LLM(ABC):
+    IS_NAIVE = False
+
     def __init__(self, max_batch: int = 10, device: str = "cuda:0") -> None:
         self.max_batch = max_batch
         self.device = device if torch.cuda.is_available() else "cpu"
@@ -36,6 +38,8 @@ class LLM(ABC):
 
 @Register("LLM")
 class MockLLM(LLM):
+    IS_NAIVE = True
+
     def __init__(
         self,
         max_batch: int = 10,
