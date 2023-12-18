@@ -5,17 +5,17 @@ var DEFAULT_PARAMS = {
         "iterations": 10,
         "generator_samples": 5,
     },
-    "llm": "M0",
+    "llm": "MockLLM", // M0
     "population_creator": {
         "name": "GeneratorPopulationCreator",
         "params": {"num_samples": 3},
     },
     "generator": {
-        "name": "LLMSimilarSentencesGenerator",
+        "name": "MockGenerator", // LLMSimilarSentencesGenerator
         "params": {},
     },
     "evaluator": {
-        "name": "BERTSimilarityEvaluator",
+        "name": "MockEvaluator", // BERTSimilarityEvaluator
         "params": {"max_batch": 10},
     },
     "initial_prompt": "Greet me as your friend",

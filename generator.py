@@ -5,19 +5,16 @@ from abc import ABC, abstractmethod
 from collections import Counter
 
 import nltk
-from nltk.corpus import stopwords
-from nltk.corpus import wordnet as wn
-
 import numpy as np
-
 import spacy
-from spacy.cli.download import download as spacy_download
-
 from chromosome import Chromosome, FixedLengthChromosome, KeywordsChromosome
 from classic.mating_pool import MatingPoolPolicy
 from classic.parents import ParentsPolicy
 from classic.variations import VariationsPolicy
 from llm import LLM, Mistral, Phi2
+from nltk.corpus import stopwords
+from nltk.corpus import wordnet as wn
+from spacy.cli.download import download as spacy_download
 from utils import Register
 
 
@@ -37,6 +34,31 @@ class Generator(ABC):
         self, population: list[Chromosome], k: int, is_initial: bool = False
     ) -> list[Chromosome]:
         ...
+
+
+@Register("Generator")
+class MockGenerator(Generator):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def __call__(
+        self, population: list[Chromosome], k: int, is_initial: bool = False
+    ) -> list[Chromosome]:
+        if is_initial:
+            assert (
+                len(population) == 1
+            ), "For the first population, you need to provide only one chromosome"
+        assert self._llm is not None and self._target is not None
+
+        return [
+            self.ChromosomeObject(
+                parent_id=c.id,
+                prompt=f"sample_{c_idx}/" + c.prompt,
+                by=id(self.__class__),
+            )
+            for c_idx, c in enumerate(population)
+            for _ in range(k)
+        ]
 
 
 @Register("Generator")
@@ -101,10 +123,10 @@ class KeywordGAGenerator(Generator):
 
         # Setup the input vocabulary.
         self._input_vocab = None
-        
+
         # Setup most common vocab.
         self._common_vocab = None
-        
+
         # Spacy model.
         try:
             spacy.load("en_core_web_sm")
@@ -145,17 +167,17 @@ class KeywordGAGenerator(Generator):
 
         initial_prompts = self._keywords_to_prompt(keywords_list)
         prompts = self._generate_prompts(initial_prompts)
-        
+
         population = [
             self.ChromosomeObject(
                 keywords=keywords,
                 prompt=re.sub('"""', "", prompt),
                 by=id(self.__class__),
-                parent_id=0
+                parent_id=0,
             )
             for keywords, prompt in zip(keywords_list, prompts)
         ]
-        
+
         # Update common vocab.
         self._update_common_vocab(population)
 
@@ -181,22 +203,25 @@ class KeywordGAGenerator(Generator):
             isinstance(c, KeywordsChromosome) for c in population
         ), "The next population can only be `KeywordsChromosome` type."
         return self._generate_new_generation(population, k)
-    
+
     def _generate_prompts(self, initial_prompts):
         prompts = self._llm.generate_from_prompt(
             prompts=initial_prompts,
             params={"max_new_tokens": 100, "do_sample": True, "top_k": 50},
         )
-        
+
         if isinstance(self._llm, Phi2):
-            prompts = [re.sub(initial_prompt, "", prompt) for initial_prompt, prompt in zip(initial_prompts, prompts)]
+            prompts = [
+                re.sub(initial_prompt, "", prompt)
+                for initial_prompt, prompt in zip(initial_prompts, prompts)
+            ]
         return prompts
 
     def _generate_new_generation(
         self, population: list[KeywordsChromosome], k: int
     ) -> list[KeywordsChromosome]:
         scores = [chromosome.score for chromosome in population]
-        
+
         # Deal with negatives.
         if min(scores) < 0:
             min_abs_score = abs(min(scores))
@@ -219,12 +244,12 @@ class KeywordGAGenerator(Generator):
             p2 = population[parents[1]]
 
             new_chromosome = self._crossover(p1, p2)
-            
+
             new_generation.append(new_chromosome)
-        
+
         # Update common vocab.
         self._update_common_vocab(population)
-        
+
         # Return new generation.
         return new_generation
 
@@ -238,34 +263,34 @@ class KeywordGAGenerator(Generator):
         keywords = random.sample(p1_p2_comb, gene_size)
         initial_prompt = self._keywords_to_prompt([keywords])
         prompt = self._generate_prompts(initial_prompt)
-        
+
         new_chromosome = self.ChromosomeObject(
             keywords=keywords,
             prompt=prompt[0],
             by=id(self.__class__),
             parent_id=(p1.id, p2.id),
         )
-        
+
         # Mutation 1.
         probability_1 = 0.05
         if random.random() < probability_1:
             new_chromosome = self._mutation_1(new_chromosome)
-        
+
         # Mutation 2.
         probability_2 = 0.05
         if random.random() < probability_2:
             new_chromosome = self._mutation_2(new_chromosome)
-        
+
         # Mutation 3.
         probability_3 = 0.1
         if random.random() < probability_3:
             new_chromosome = self._mutation_3(new_chromosome)
-        
+
         # Mutation 4.
         probability_4 = 0.03
         if random.random() < probability_4:
             new_chromosome = self._mutation_4(new_chromosome)
-        
+
         return new_chromosome
 
     def _keywords_to_prompt(self, keywords_list: list[list[str]]) -> list[str]:
@@ -377,120 +402,134 @@ class KeywordGAGenerator(Generator):
             words = list(wn.all_synsets(grammar_code))
 
         return tuple(word for synset in words for word in synset.lemma_names())
-    
+
     def _update_common_vocab(self, population: list[Chromosome]):
         # Get all current keywords.
-        keywords = [keyword for chromosome in population for keyword in chromosome.keywords]
+        keywords = [
+            keyword for chromosome in population for keyword in chromosome.keywords
+        ]
         # Determine top n.
         top_n = 20 if len(keywords) > 20 else len(keywords)
         # Update common vocab.
-        self._common_vocab = [word for word, count in Counter(
-            keywords).most_common(top_n)]
-    
+        self._common_vocab = [
+            word for word, count in Counter(keywords).most_common(top_n)
+        ]
+
     def _mutation_1(self, chromosome: Chromosome):
         # Swap some genes to the default vocab.
         n_random = np.random.randint(
-            low=1,
-            high=4 if len(chromosome.keywords) > 4 else len(chromosome.keywords))
-        
+            low=1, high=4 if len(chromosome.keywords) > 4 else len(chromosome.keywords)
+        )
+
         # Indexes.
         indexes = np.random.choice(
-            np.arange(len(chromosome.keywords)), size=n_random, replace=False)
-        
+            np.arange(len(chromosome.keywords)), size=n_random, replace=False
+        )
+
         # Get the same amount of text from default vocab.
         new_keywords = self._get_random_default_vocab(n_sample=n_random)
-        
+
         # Get keywords as list.
         current_keywords = list(chromosome.keywords)
-        
+
         # Swap words.
         for index, new_keyword in zip(indexes, new_keywords):
             current_keywords[index] = new_keyword
-        
+
         # Remove duplicates and put it back.
         chromosome.keywords = tuple(set(current_keywords))
-        
+
         # Return chromosome.
         return chromosome
-    
+
     def _mutation_2(self, chromosome: Chromosome):
         # Swap some genes to the input vocab.
         n_random = np.random.randint(
-            low=1,
-            high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords))
-        
+            low=1, high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
+        )
+
         # Indexes.
         indexes = np.random.choice(
-            np.arange(len(chromosome.keywords)), size=n_random, replace=False)
-        
+            np.arange(len(chromosome.keywords)), size=n_random, replace=False
+        )
+
         # Get the same amount of text from input vocab.
         new_keywords = self._get_random_input_vocab(n_sample=n_random)
-        
+
         # Get keywords as list.
         current_keywords = list(chromosome.keywords)
-        
+
         # Swap words.
         for index, new_keyword in zip(indexes, new_keywords):
             current_keywords[index] = new_keyword
-        
+
         # Remove duplicates and put it back.
         chromosome.keywords = tuple(set(current_keywords))
-        
+
         # Return chromosome.
         return chromosome
-    
+
     def _mutation_3(self, chromosome: Chromosome):
         # Swap some genes to the input vocab.
         n_random = np.random.randint(
-            low=1,
-            high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords))
-        
+            low=1, high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
+        )
+
         # Indexes.
         indexes = np.random.choice(
-            np.arange(len(chromosome.keywords)), size=n_random, replace=False)
-        
+            np.arange(len(chromosome.keywords)), size=n_random, replace=False
+        )
+
         # Get the same amount of text from input vocab.
         new_keywords = random.sample(self._common_vocab, n_random)
-        
+
         # Get keywords as list.
         current_keywords = list(chromosome.keywords)
-        
+
         # Swap words.
         for index, new_keyword in zip(indexes, new_keywords):
             current_keywords[index] = new_keyword
-        
+
         # Remove duplicates and put it back.
         chromosome.keywords = tuple(set(current_keywords))
-        
+
         # Return chromosome.
         return chromosome
-    
+
     def _mutation_4(self, chromosome: Chromosome):
         # Swap some genes to the input vocab.
         n_random = np.random.randint(
-            low=1,
-            high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords))
-        
+            low=1, high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
+        )
+
         # Indexes.
         indexes = np.random.choice(
-            np.arange(len(chromosome.keywords)), size=n_random, replace=False)
-        
+            np.arange(len(chromosome.keywords)), size=n_random, replace=False
+        )
+
         # Get keywords as list.
         current_keywords = list(chromosome.keywords)
-        
+
         # Get the synonyms.
         for index in indexes:
             word = current_keywords[index]
-            synonyms = {lemma.name() for synset in wn.synsets(word) for lemma in synset.lemmas() if lemma.name() != word}
+            synonyms = {
+                lemma.name()
+                for synset in wn.synsets(word)
+                for lemma in synset.lemmas()
+                if lemma.name() != word
+            }
             if synonyms:
                 current_keywords[index] = re.sub(
-                    "-", "_", random.choice(list(synonyms)))
-        
+                    "-", "_", random.choice(list(synonyms))
+                )
+
         # Remove duplicates.
         chromosome.keywords = tuple(set(current_keywords))
-        
+
         # Return chromosome.
         return chromosome
+
 
 @Register("Generator")
 class ComposerGenerator(Generator):
