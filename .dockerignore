@@ -1,0 +1,6 @@
+env
+.venv
+env_2
+
+node_modules
+npm-debug.log
