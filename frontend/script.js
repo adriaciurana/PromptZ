@@ -79,8 +79,10 @@ function start_btn(){
     let params = DEFAULT_PARAMS; // TODO: copy in the future.
 
     let target = $("#target").val();
+    $(".target-txt").html(target);
     let initial_prompt = $("#initial_prompt").val();
     $(".start-menu").hide();
+    $(".start-btn").hide(); // for now
     $(".topk-menu").show();
     params['initial_prompt'] = initial_prompt;
     params['target'] = target;
@@ -148,6 +150,7 @@ function init_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
+    $(".iteration-txt").html("0");
 }
 
 function generated_graph(msg_json){
@@ -188,10 +191,11 @@ function generated_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
+    $(".iteration-txt").html(iteration.toString());
 }
 
 function filtered_graph(msg_json){
-    // let iteration = msg_json["iteration"];
+    let iteration = msg_json["iteration"];
     let current_status_population = msg_json["current_status_population"];
     for(let chromosome_id in current_status_population){
         let value = current_status_population[chromosome_id];
@@ -199,6 +203,7 @@ function filtered_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
+    $(".iteration-txt").html(iteration.toString());
 }
 
 function results_graph(msg_json){
@@ -210,6 +215,7 @@ function results_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
+    $(".iteration-txt").html("Done");
 }
 
 /* WEB SOCKET */
