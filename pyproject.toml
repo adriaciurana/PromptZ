@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "ga-prompt-llm"
+version = "0.1.0"
+description = "An small package that allow you to interact with an LLM using Genetic Algorithms to improve the quality of your prompt or reverse engineering (useful if you want to detect security lacks on your own LLM)"
+authors = ["Team 404 <info@dreamlearning.ai>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+torch = {version = "^2.1.2+cu118", source = "pytorch-gpu-src"}
+torchvision = {version = "^0.16.2+cu118", source = "pytorch-gpu-src"}
+torchaudio = {version = "^2.1.2+cu118", source = "pytorch-gpu-src"}
+transformers = "^4.36.2"
+datasets = "^2.15.0"
+pytest-xprocess = "^0.23.0"
+bitsandbytes = "^0.41.3.post2"
+scipy = "^1.11.4"
+accelerate = "^0.25.0"
+sentence-transformers = "^2.2.2"
+qqdm = "^0.0.7"
+tokenizers = "^0.15.0"
+einops = "^0.7.0"
+numpy = "^1.26.2"
+wonderwords = "^2.2.0"
+vadersentiment = "^3.3.2"
+starlette = "^0.34.0"
+requests = "^2.31.0"
+pytest = "^7.4.3"
+pyhypercycle-aim = {git = "https://github.com/hypercycle-development/pyhypercycle-aim.git"}
+spacy = "^3.7.2"
+
+
+[[tool.poetry.source]]
+name = "pytorch-gpu-src"
+url = "https://download.pytorch.org/whl/cu118"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src/ga_prompt_llm"
+]
