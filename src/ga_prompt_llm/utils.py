@@ -2,8 +2,15 @@ import functools
 import logging
 import time
 from collections import defaultdict
+from pathlib import Path
 from threading import Thread
 from typing import TYPE_CHECKING, Any, Callable, get_type_hints
+
+import torch
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
+ROOT_PATH = Path(__file__).parent / "../../"
+
 
 import torch
 
@@ -142,3 +149,33 @@ class CacheWithRegister(CachedByTime):
             self[__key] = value
 
         return value
+
+
+class Keyword2SequenceModel:
+    def __init__(
+        self,
+        model_folder_path: Path = ROOT_PATH / "keywords2sequence",
+        device: str = "cuda:0",
+        max_batch: int = 10,
+    ) -> None:
+        if not Path(model_folder_path).exists():
+            raise FileNotFoundError(
+                f"The model is not found, please download from here: https://drive.google.com/file/d/12mmVM2zX54f9HErMK9wRjh6iVwUfXmHC/view?usp=sharing and unzip in the root folder: {model_folder_path.parent}"
+            )
+
+        self.device = device
+        self._model = AutoModelForSeq2SeqLM.from_pretrained(
+            model_folder_path, device_map=self.device
+        )
+        self._model.model.encoder.embed_positions = UseLessModule()
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            "sshleifer/distilbart-xsum-12-3"
+        )
+        self.max_batch = max_batch
+
+    @batch_processing(AGGREGATE_STRINGS)
+    def __call__(self, keywords: list[list[str]]) -> list[str]:
+        batch = self._tokenizer(" ".join(keywords), return_tensors="pt")
+        with torch.no_grad():
+            generated_ids = self._model.generate(batch["input_ids"].to(self.device))
+        return self._tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
