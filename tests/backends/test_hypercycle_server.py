@@ -4,10 +4,6 @@ from pathlib import Path
 
 import pytest
 import requests
-
-PROJECT_PATH = Path(__file__).parent / "../../"
-sys.path.append(str(PROJECT_PATH))
-
 from backends.test_manual_hypercycle_server import run_endpoint_for_testing
 from xprocess import ProcessStarter
 
@@ -19,7 +15,10 @@ def hypercycle_server(request, xprocess):
         pattern = "Uvicorn running on http://0.0.0.0:4002"
 
         # command to start process
-        args = ["python", request.config.rootdir / "backends/hypercycle_server.py"]
+        args = [
+            "python",
+            request.config.rootdir / "src/ga_prompt_llm/backends/hypercycle_server.py",
+        ]
 
     # ensure process is running and return its logfile
     logfile = xprocess.ensure("hypercycle_server", Starter)
