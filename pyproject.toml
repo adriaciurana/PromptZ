@@ -8,16 +8,16 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11"
 torch = [
-    {version = "^2.1.2+cu118", source = "pytorch-gpu-src", markers = "sys_platform == 'linux'"}
+    {version = "^2.1.2+cu118", source = "pytorch-gpu-src", markers = "sys_platform == 'linux'"},
     {version = "^2.1.2", source = "PyPI", markers = "sys_platform == 'darwin'"}
 ]
 
 torchvision = [
-    {version = "^0.16.2+cu118", source = "pytorch-gpu-src", markers = "sys_platform == 'linux'"}
+    {version = "^0.16.2+cu118", source = "pytorch-gpu-src", markers = "sys_platform == 'linux'"},
     {version = "^0.16.2", markers = "sys_platform == 'darwin'"}
 ]
 torchaudio = [
-    {version = "^2.1.2+cu118", source = "pytorch-gpu-src", markers = "sys_platform == 'linux'"}
+    {version = "^2.1.2+cu118", source = "pytorch-gpu-src", markers = "sys_platform == 'linux'"},
     {version = "^2.1.2", markers = "sys_platform == 'darwin'"}
 ]
 transformers = "^4.36.2"
