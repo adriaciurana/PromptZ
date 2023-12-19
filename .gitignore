@@ -161,6 +161,8 @@ cython_debug/
 env
 old
 env_2
+training_keywords2sequence/seq2seq_dataset
+training_keywords2sequence/results
 env_3
 scripts/conda_export.sh
 scripts/hypercycle_requirements.txt
