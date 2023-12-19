@@ -161,3 +161,7 @@ cython_debug/
 env
 old
 env_2
+env_3
+scripts/conda_export.sh
+scripts/environment.yaml
+scripts/hypercycle_requirements.txt

@@ -11,7 +11,7 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 import tornado.wsgi
-from tornado.options import define, options, parse_command_line
+from tornado.options import define, options
 
 sys.path.append(str(Path(__file__).parent / "../"))
 
