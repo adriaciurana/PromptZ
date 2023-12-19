@@ -131,22 +131,10 @@ function init_graph(msg_json){
         CHROMOSOMES[chromosome.id] = chromosome;
 
         // Parse parents
-        let parents_id;
-        if(!Array.isArray(chromosome.parent_id)){
-            parents_id = [chromosome.parent_id];
-        
-        }else{
-            parents_id = chromosome.parent_id;
-        }
-
-        // Create edges
-        for(let j = 0; j < parents_id.length; j++){
-            let parent_id = parents_id[j];
-            EDGES.push({
-                source: parseInt(NODE_ID_TO_JSID[parent_id]),
-                target: current_jsid,
-            });
-        }
+        EDGES.push({
+            source: parseInt(NODE_ID_TO_JSID[1]),
+            target: current_jsid,
+        });
     }
     draw_graph();
     recompute_topk();
