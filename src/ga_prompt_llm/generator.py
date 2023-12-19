@@ -117,7 +117,6 @@ class KeywordGAGenerator(Generator):
         # Get the default vocabulary.
         self._default_vocab = {
             "nouns": self._init_default_vocab(grammar_code="n"),
-            "verbs": self._init_default_vocab(grammar_code="v"),
             "adj": self._init_default_vocab(grammar_code="a"),
         }
 
@@ -271,11 +270,16 @@ class KeywordGAGenerator(Generator):
         initial_prompt = self._keywords_to_prompt([keywords])
         prompt = self._generate_prompts(initial_prompt)
 
+        if p1 == p2:
+            parent_id = p1.id
+        else:
+            parent_id = (p1.id, p2.id)
+
         new_chromosome = self.ChromosomeObject(
-            keywords=keywords,
+            keywords=tuple(set(keywords)),
             prompt=prompt[0],
             by=id(self.__class__),
-            parent_id=(p1.id, p2.id),
+            parent_id=parent_id,
         )
 
         # Mutation 1.
@@ -319,7 +323,7 @@ class KeywordGAGenerator(Generator):
         return initial_prompts
 
     def _get_random_default_vocab(
-        self, n_sample: int, subset_list: list = ["nouns", "verbs", "adj"]
+        self, n_sample: int, subset_list: list = ["nouns", "adj"]
     ) -> list[str]:
         all_words = []
 
