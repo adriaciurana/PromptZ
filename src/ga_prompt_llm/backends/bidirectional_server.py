@@ -39,6 +39,10 @@ define("port", type=int, default=BI_PORT)
 
 PROJECT_PATH = Path(__file__).parent / "../"
 
+tornado.autoreload.start()
+tornado.autoreload.watch(str(PROJECT_PATH / "frontend/index.html"))
+tornado.autoreload.watch(str(PROJECT_PATH / "frontend/index.html"))
+
 
 class Website(tornado.web.RequestHandler):
     def get(self):
@@ -171,7 +175,7 @@ class WebsocketCommunication(tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         print("WebSocket closed")
-        
+
         # clients must be accessed through class object!!!
         WebsocketCommunication.clients.remove(self)
 
