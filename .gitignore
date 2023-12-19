@@ -167,6 +167,7 @@ env_3
 scripts/conda_export.sh
 scripts/hypercycle_requirements.txt
 scripts/environment.yml
+README.old.md
 
 # Folder
 keywords2sequence/
