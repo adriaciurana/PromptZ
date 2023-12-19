@@ -12,4 +12,5 @@ RUN poetry run python -m spacy download en_core_web_sm
 
 # The code to run when container is started:
 COPY src/ga_prompt_llm .
-ENTRYPOINT [ "poetry", "run", "docker/entrypoint.sh" ]
+COPY docker/entrypoint.sh .
+ENTRYPOINT [ "./entrypoint.sh" ]
