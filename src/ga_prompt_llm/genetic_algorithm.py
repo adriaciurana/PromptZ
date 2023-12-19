@@ -112,16 +112,15 @@ class GeneticAlgorithm:
             self._callbacks.filtered_by_populations(
                 iteration, old_population, population
             )
-
+            
             logging.info(f"Filtering {iteration} population.")
 
             best_chromosome: Chromosome = max(population, key=lambda c: c.score)
+            best_chromosome_dict = {
+                k: getattr(best_chromosome, k) for k in best_chromosome.show
+            }
             pbar.set_infos(
-                {
-                    "best-solution-output": self._llm([best_chromosome])[0],
-                    "best-solution-score": float(best_chromosome.score),
-                    "best-solution-prompt": best_chromosome.prompt.strip(),
-                },
+                {f"best-solution-{k}": v for k, v in best_chromosome_dict.items()}
             )
 
         # 9. Filter population

@@ -16,7 +16,7 @@ def run_endpoint_for_testing(url: str = "http://localhost:4002"):
             },
             "llm": "M0",
             "population_creator": {
-                "name": "LLMPopulationCreator",
+                "name": "GeneratorPopulationCreator",
                 "params": {"num_samples": 10},
             },
             "generator": {

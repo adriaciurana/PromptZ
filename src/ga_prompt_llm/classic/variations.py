@@ -33,7 +33,10 @@ class CrossOver(ABC):
 
     @abstractmethod
     def __call__(
-        self, chromosome_a: FixedLengthChromosome, chromosome_b: FixedLengthChromosome
+        self,
+        chromosome_a: FixedLengthChromosome,
+        chromosome_b: FixedLengthChromosome,
+        by: str,
     ) -> FixedLengthChromosome:
         ...
 
@@ -43,7 +46,10 @@ class MixSentences(CrossOver):
         super().__init__()
 
     def __call__(
-        self, chromosome_a: FixedLengthChromosome, chromosome_b: FixedLengthChromosome
+        self,
+        chromosome_a: FixedLengthChromosome,
+        chromosome_b: FixedLengthChromosome,
+        by: str,
     ) -> FixedLengthChromosome:
         assert isinstance(chromosome_a, FixedLengthChromosome) and isinstance(
             chromosome_b, FixedLengthChromosome
@@ -76,6 +82,7 @@ class MixSentences(CrossOver):
             parent_id=(chromosome_a.parent_id, chromosome_b.parent_id),
             tokens=tokens_mixed,
             mutable_mask=chromosome_a.mutable_mask,
+            by=by,
         )
 
 
@@ -84,7 +91,9 @@ class Mutator(ABC):
         super().__init__()
 
     @abstractmethod
-    def __call__(self, chromosome: FixedLengthChromosome) -> FixedLengthChromosome:
+    def __call__(
+        self, chromosome: FixedLengthChromosome, by: str
+    ) -> FixedLengthChromosome:
         ...
 
 
@@ -114,7 +123,9 @@ class Noise(Mutator):
             if w.lower_ != word_obj.lower_
         )
 
-    def __call__(self, chromosome: FixedLengthChromosome) -> FixedLengthChromosome:
+    def __call__(
+        self, chromosome: FixedLengthChromosome, by: str
+    ) -> FixedLengthChromosome:
         words = copy(chromosome.prompt)
         rand_prob = torch.rand(*words.shape) > 0.5
         for word_idx, (word, is_mutable) in enumerate(zip(words, rand_prob)):
@@ -133,7 +144,10 @@ class Noise(Mutator):
             words[word_idx] = similar_words[word_sim_idx]
 
         return FixedLengthChromosome(
-            parent_id=chromosome.id, tokens=words, mutable_mask=chromosome.mutable_mask
+            parent_id=chromosome.id,
+            tokens=words,
+            mutable_mask=chromosome.mutable_mask,
+            by=by,
         )
 
 
@@ -153,20 +167,21 @@ class VariationsPolicy:
     def __call__(
         self,
         pair_parents: Iterator[tuple[FixedLengthChromosome, FixedLengthChromosome]],
+        by: str,
     ) -> Iterator[FixedLengthChromosome]:
         for c_a, c_b in pair_parents:
             if np.random.rand() < self._prob_to_crossover:
                 crossover_method = choice(self._crossovers)
-                c_a = crossover_method(c_a, c_b)
-                c_b = crossover_method(c_b, c_a)
+                c_a = crossover_method(c_a, c_b, by=by)
+                c_b = crossover_method(c_b, c_a, by=by)
 
             if np.random.rand() < self._prob_to_mutate:
                 mutator_method = choice(self._mutators)
-                c_a = mutator_method(c_a)
+                c_a = mutator_method(c_a, by=by)
 
             if np.random.rand() < self._prob_to_mutate:
                 mutator_method = choice(self._mutators)
-                c_b = mutator_method(c_b)
+                c_b = mutator_method(c_b, by=by)
 
             yield c_a
             yield c_b

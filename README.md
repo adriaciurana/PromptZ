@@ -15,6 +15,8 @@ For now we can use conda, I tried to use pipenv with pytorch but works bad :( (F
 # pip install sentence_transformers
 # pip install qqdm
 # pip install tokenizers
+# pip install pytest-xprocess
+# pip install einops
 
 conda install --file environment.yaml
 ```

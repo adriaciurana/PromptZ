@@ -1,21 +1,21 @@
 var DEFAULT_PARAMS = {
     "runtime_config": {
-        "max_population": 3,
-        "topk_population": 1,
-        "iterations": 3,
-        "generator_samples": 3,
+        "max_population": 5,
+        "topk_population": 3,
+        "iterations": 10,
+        "generator_samples": 5,
     },
-    "llm": "M0",
+    "llm": "MockLLM", // M0
     "population_creator": {
-        "name": "LLMPopulationCreator",
+        "name": "GeneratorPopulationCreator",
         "params": {"num_samples": 3},
     },
     "generator": {
-        "name": "LLMSimilarSentencesGenerator",
+        "name": "MockGenerator", // LLMSimilarSentencesGenerator
         "params": {},
     },
     "evaluator": {
-        "name": "BERTSimilarityEvaluator",
+        "name": "MockEvaluator", // BERTSimilarityEvaluator
         "params": {"max_batch": 10},
     },
     "initial_prompt": "Greet me as your friend",
@@ -25,12 +25,68 @@ var WS;
 var NODES = [];
 var NODES_DICT = {};
 var NODE_ID_TO_JSID = {};
+var NODE_JSID_TO_ID = {};
 var EDGES = [];
 var CHROMOSOMES = {};
+
+function hide_left_side(){
+    let btn = $(".hide_btn");
+    let right_side = $(".right-side");
+    if(btn.hasClass("active")){
+        right_side.show();
+        btn.html("Hide");
+        btn.removeClass("active");
+    }else{
+        right_side.hide();
+        btn.html("Show");
+        btn.addClass("active");
+
+    }
+}
+
+function recompute_topk(){
+    let html_topk = "";
+
+    let chromosomes = [];
+    for(let chromosome_id in CHROMOSOMES){
+        let c = CHROMOSOMES[chromosome_id];
+        if(c != null){
+            chromosomes.push(c);
+        }
+        
+    }
+
+    chromosomes.sort((c_a, c_b) => {
+        return c_b['score'] - c_a['score'];
+    });
+    
+    for(let i = 0; i < DEFAULT_PARAMS["runtime_config"]["topk_population"]; i++){
+        let chromosome = chromosomes[i];
+        html_topk += "<div class='box'><p><b>Prompt:</b> " + chromosome['prompt'] + "</p><p><b>Output:</b> " + chromosome['output'] + "</p><p><b>Score</b> " + chromosome['score'] + "</p></div>";
+    }
+
+    $(".topk-menu .list").html(html_topk);
+}
+
+function show_node(id){
+    let chromosome = CHROMOSOMES[NODE_JSID_TO_ID[id]];
+    let chromosome_html = "<div class='box'><p><b>Prompt:</b> " + chromosome['prompt'] + "</p><p><b>Output:</b> " + chromosome['output'] + "</p><p><b>Score</b> " + chromosome['score'] + "</p></div>";
+    $(".show-menu").html(chromosome_html);
+}
 
 
 function start_btn(){
     let params = DEFAULT_PARAMS; // TODO: copy in the future.
+
+    let target = $("#target").val();
+    $(".target-txt").html(target);
+    let initial_prompt = $("#initial_prompt").val();
+    $(".start-menu").hide();
+    $(".start-btn").hide(); // for now
+    $(".topk-menu").show();
+    params['initial_prompt'] = initial_prompt;
+    params['target'] = target;
+
     send_cmd("run", params); 
 }
 
@@ -53,6 +109,7 @@ function init_graph(msg_json){
     };
     NODES.push(node_main);
     NODE_ID_TO_JSID[1] = 0;
+    NODE_JSID_TO_ID[0] = 1;
     NODES_DICT[1] = node_main;
     CHROMOSOMES[1] = null;
 
@@ -68,30 +125,20 @@ function init_graph(msg_json){
         };
         let current_jsid = NODES.length;
         NODE_ID_TO_JSID[chromosome.id] = current_jsid;
+        NODE_JSID_TO_ID[current_jsid] = chromosome.id;
         NODES.push(node);
         NODES_DICT[chromosome.id] = node;
         CHROMOSOMES[chromosome.id] = chromosome;
 
         // Parse parents
-        let parents_id;
-        if(!Array.isArray(chromosome.parent_id)){
-            parents_id = [chromosome.parent_id];
-        
-        }else{
-            parents_id = chromosome.parent_id;
-        }
-
-        // Create edges
-        for(let j = 0; j < parents_id.length; j++){
-            let parent_id = parents_id[j];
-            console.log(parent_id)
-            EDGES.push({
-                source: parseInt(NODE_ID_TO_JSID[parent_id]),
-                target: current_jsid,
-            });
-        }
+        EDGES.push({
+            source: parseInt(NODE_ID_TO_JSID[1]),
+            target: current_jsid,
+        });
     }
     draw_graph();
+    recompute_topk();
+    $(".iteration-txt").html("0");
 }
 
 function generated_graph(msg_json){
@@ -102,11 +149,12 @@ function generated_graph(msg_json){
         let node = {
             id: NODES.length, 
             level: iteration + 2,
-            status: "ok", 
+            status: "alive", 
             score: chromosome.score,
         };
         let current_jsid = NODES.length;
         NODE_ID_TO_JSID[chromosome.id] = current_jsid;
+        NODE_JSID_TO_ID[current_jsid] = chromosome.id;
         NODES.push(node);
         NODES_DICT[chromosome.id] = node;
         CHROMOSOMES[chromosome.id] = chromosome;
@@ -130,16 +178,20 @@ function generated_graph(msg_json){
         }
     }
     draw_graph();
+    recompute_topk();
+    $(".iteration-txt").html(iteration.toString());
 }
 
 function filtered_graph(msg_json){
-    // let iteration = msg_json["iteration"];
+    let iteration = msg_json["iteration"];
     let current_status_population = msg_json["current_status_population"];
     for(let chromosome_id in current_status_population){
         let value = current_status_population[chromosome_id];
-        NODES[NODE_ID_TO_JSID[chromosome_id]].status = (value) ? 'ok' : 'killed';
+        NODES[NODE_ID_TO_JSID[chromosome_id]].status = (value) ? 'alive' : 'removed';
     }
     draw_graph();
+    recompute_topk();
+    $(".iteration-txt").html(iteration.toString());
 }
 
 function results_graph(msg_json){
@@ -147,9 +199,11 @@ function results_graph(msg_json){
     let population_ids = msg_json["population_ids"];
     for(let i = 0; i < population_ids.length; i++){
         let chromosome_id = population_ids[i];
-        NODES[NODE_ID_TO_JSID[chromosome_id]].status = 'result';
+        NODES[NODE_ID_TO_JSID[chromosome_id]].status = 'topk';
     }
     draw_graph();
+    recompute_topk();
+    $(".iteration-txt").html("Done");
 }
 
 /* WEB SOCKET */
@@ -210,23 +264,17 @@ function open_ws(){
 /* DRAW GRAPH */
 const SIZE = 1200;
 const DEFAULT_RADIUS = 20;
-const COLORS = {
-    "killed": "#A01928",
-    "result": "#9F62A4",
-    "ok": "#0B7A7A",
-};
 let MARGIN = 80;
 let GAP = 70;
 
-const D3NODE = document.querySelector("#d3Node");
-
-const status2color = (level) => {
-    return COLORS[level];
-};
+const D3NODE = document.querySelector("#d3_node");
 
 // Define cola
 const D3ADAPTOR = cola.d3adaptor;
-const D3COLA = D3ADAPTOR(d3).avoidOverlaps(true).size([SIZE, SIZE]);
+const right_side = $(".right-side");
+let width_size = right_side.width();
+let height_size = right_side.height();
+const D3COLA = D3ADAPTOR(d3).avoidOverlaps(true).size([width_size, height_size]);
 const SVG = d3.select(D3NODE).append("svg");
 let MAIN_SVG = SVG.append("g").attr("class", "main");
 
@@ -241,9 +289,6 @@ function zoomed(){
 }
 
 function draw_graph(){
-    // console.log(NODES);
-    // console.log(EDGES);
-
     // TODO: For now is not incremental, we draw all the time all the GRAPH!
     MAIN_SVG.selectAll("g").remove();
 
@@ -279,7 +324,7 @@ function draw_graph(){
         constraints.push(constraint);
     }
     SVG
-        .attr("viewBox", `0 0 ${SIZE} ${SIZE}`)
+        .attr("viewBox", `0 0 ${width_size} ${height_size}`)
         .style("width", "100%")
         .style("height", "auto");
 
@@ -315,10 +360,11 @@ function draw_graph(){
         .data(NODES)
         .enter()
         .append("circle")
-        .attr("fill", (d) => status2color(d.status))
+        .attr("class", (d) => d.status)
         .attr("cx", (d) => d.x)
         .attr("cy", (d) => d.y + MARGIN)
         .attr("r", DEFAULT_RADIUS)
+        .style("cursor", "pointer")
         .call(D3COLA.drag);
 
     var text = MAIN_SVG
@@ -334,9 +380,27 @@ function draw_graph(){
         .attr("fill", "white")
         .attr("x", (d) => d.x)
         .attr("y", (d) => d.y + MARGIN)
-        .attr("class", "labelText")
+        .attr("class", (d) => d.status)
         .text((d) => (typeof d.score === "string") ? d.score : parseFloat(d.score.toFixed(2)))
+        .style("cursor", "pointer")
         .call(D3COLA.drag);
+
+    node.on("click", (d) => {
+        show_node(d.id);
+    });
+
+    text.on("click", (d) => {
+        show_node(d.id);
+    });
+
+    // node.on({
+    //     "mouseover": (d) => {
+    //         d3.select(this).style("cursor", "pointer"); 
+    //     },
+    //     "mouseout": (d) => {
+    //         d3.select(this).style("cursor", "default"); 
+    //     }
+    // });
         
     D3COLA.on("tick", () => {
         link

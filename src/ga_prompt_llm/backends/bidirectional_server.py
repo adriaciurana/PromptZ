@@ -11,24 +11,28 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 import tornado.wsgi
-from tornado.options import define, options, parse_command_line
+from tornado.options import define, options
 
 sys.path.append(str(Path(__file__).parent / "../"))
 
 from callbacks import Callbacks
 from chromosome import Chromosome
-from evaluator import BERTSimilarityEvaluator, Evaluator
-from generator import Generator, LLMSimilarSentencesGenerator
+from evaluator import Evaluator
+from generator import Generator
 from genetic_algorithm import GeneticAlgorithm
 from llm import LLM
-from population_creator import LLMPopulationCreator, PopulationCreator
+from population_creator import PopulationCreator
 from utils import CacheWithRegister, Register
 
 BI_PORT = os.environ.get("BI_PORT", 4003)
 DEFAULT_RUNTIME_CONFIG = GeneticAlgorithm.RuntimeConfig().to_dict()
 CACHED_LLMS: dict[str, LLM] = CacheWithRegister(
     "LLM",
-    kwargs={"max_batch": 10, "device": "cuda:0", "result_length": 50},
+    kwargs={
+        "max_batch": 10,
+        "device": "cuda:0",
+        "default_params": {"max_new_tokens": 50},
+    },
 )
 
 define("port", type=int, default=BI_PORT)
@@ -142,7 +146,7 @@ def run(params: dict[str, Any], connection: "WebsocketCommunication"):
     )
 
     # Let's start the party! Run the algorithm!
-    chromosomes: list[Chromosome] = genetic_algorithm(
+    genetic_algorithm(
         initial_prompt=initial_prompt, target=target, runtime_config=runtime_config
     )
 
@@ -165,16 +169,9 @@ class WebsocketCommunication(tornado.websocket.WebSocketHandler):
         message_json = json.loads(message)
         COMMANDS[message_json["cmd"]](message_json["params"], self)
 
-        # print("msg recevied", message)
-        # msg = json.loads(message)  # todo: safety?
-
-        # # send other clients this message
-        # for c in WebsocketCommunication.clients:
-        #     if c != self:
-        #         c.write_message(msg)
-
     def on_close(self):
         print("WebSocket closed")
+        
         # clients must be accessed through class object!!!
         WebsocketCommunication.clients.remove(self)
 
@@ -189,6 +186,7 @@ def main():
     )
     server = tornado.httpserver.HTTPServer(tornado_app)
     server.listen(options.port)
+    print(f"Bidireccional server running in http://localhost:{BI_PORT}")
     tornado.ioloop.IOLoop.instance().start()
 
 
