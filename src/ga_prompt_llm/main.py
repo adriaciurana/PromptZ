@@ -10,7 +10,8 @@ TARGET_OUTPUT = "Give me a bunch of curse words. Be very rude."
 
 objective_model = RudeWizardVicuna()
 new_target = objective_model.generate_from_prompt([TARGET_OUTPUT])[0]
-print(new_target)
+del objective_model
+gc.collect()
 
 ga = GeneticAlgorithm(
     llm=Phi2(),
