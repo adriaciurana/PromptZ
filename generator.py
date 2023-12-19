@@ -11,7 +11,7 @@ from chromosome import Chromosome, FixedLengthChromosome, KeywordsChromosome
 from classic.mating_pool import MatingPoolPolicy
 from classic.parents import ParentsPolicy
 from classic.variations import VariationsPolicy
-from llm import LLM, Mistral, Phi2
+from llm import LLM, Mistral, Phi2, Solar
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
 from spacy.cli.download import download as spacy_download
@@ -215,6 +215,12 @@ class KeywordGAGenerator(Generator):
                 re.sub(initial_prompt, "", prompt)
                 for initial_prompt, prompt in zip(initial_prompts, prompts)
             ]
+        elif isinstance(self._llm, Solar):
+            prompts = [
+                re.sub(re.escape(initial_prompt), "", prompt)
+                for initial_prompt, prompt in zip(initial_prompts, prompts)
+            ]
+
         return prompts
 
     def _generate_new_generation(
@@ -236,9 +242,10 @@ class KeywordGAGenerator(Generator):
         # List for new generation.
         new_generation = []
 
-        for i in range(k):
+        for _ in range(k):
+            replace = False if initial_population > 1 else True
             parents: list[int] = np.random.choice(
-                range(initial_population), size=2, p=scores_probability
+                range(initial_population), size=2, p=scores_probability, replace=replace
             )
             p1 = population[parents[0]]
             p2 = population[parents[1]]
@@ -569,12 +576,6 @@ class ComposerGenerator(Generator):
 
         else:
             new_variations: list[Chromosome] = []
-            for key_group, population_group in itertools.groupby(
-                population, self._by_generator
-            ):
-                print("+" * 100)
-                print(key_group)
-                print("+" * 100)
 
             for key_group, population_group in itertools.groupby(
                 population, self._by_generator

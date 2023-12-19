@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable
 
 import torch
+import logging
 from chromosome import Chromosome
 from transformers import (
     AutoModelForCausalLM,
@@ -257,6 +258,7 @@ class Mistral(HuggingFaceLLM):
             device=device,
             default_params=default_params,
         )
+        self._tokenizer.pad_token = self._tokenizer.eos_token
 
     def __call__(
         self, population: list[Chromosome], params: dict[str, Any] | None = None
@@ -270,22 +272,115 @@ class Mistral(HuggingFaceLLM):
         ]
         return [re.sub(r"\?\nAnswer: ", "", output) for output in outputs]
 
+@Register("LLM")
+class Solar(HuggingFaceLLM):
+    def __init__(
+        self,
+        max_batch: int = 10,
+        device: str = "cuda:0",
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 500,
+            "num_beams": 2,
+            "no_repeat_ngram_size": 2,
+            "early_stopping": True,
+        },
+    ) -> None:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+        )
+        super().__init__(
+            tokenizer=AutoTokenizer.from_pretrained(
+                "Upstage/SOLAR-10.7B-Instruct-v1.0"
+            ),
+            model=lambda device: AutoModelForCausalLM.from_pretrained(
+                "Upstage/SOLAR-10.7B-Instruct-v1.0",
+                device_map=device,
+                load_in_4bit=True if platform.system() != "Windows" else False,
+                quantization_config=bnb_config
+                if platform.system() != "Windows"
+                else None,
+                torch_dtype=torch.bfloat16,
+                # device_map="auto",
+                trust_remote_code=True,
+            ),
+            max_batch=max_batch,
+            device=device,
+            default_params=default_params,
+        )
 
+    def __call__(
+        self, population: list[Chromosome], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        prompts = [c.prompt for c in population]
+        outputs = [
+            re.sub(r"^(.|\n)*Answer:", "", re.sub(re.escape(prompt), "", output))
+            for prompt, output in zip(
+                prompts, self.generate_from_prompt(prompts, params)
+            )
+        ]
+        return outputs
+    
+    @batch_processing(AGGREGATE_STRINGS)
+    def generate_from_prompt(
+        self, prompts: list[str], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        prompts = [self._tokenizer.apply_chat_template(conversation=[{'role': 'user', 'content': prompt}], tokenize=False, add_generation_prompt=True) for prompt in prompts]
+        return [ re.sub(re.escape(prompt), "", output) for prompt, output in zip(prompts, super().generate_from_prompt(prompts, params))]
+
+@Register("LLM")
+class RudeWizardVicuna(HuggingFaceLLM):
+    def __init__(
+        self,
+        max_batch: int = 2,
+        device: str = "cuda:0",
+        default_params: dict[str, Any] = {
+            "max_new_tokens": 500,
+            "num_beams": 2,
+            "temperature": 0.7,
+            "do_sample": True,
+        },
+    ) -> None:
+        logging.getLogger("transformers").setLevel(logging.CRITICAL)
+        logging.getLogger("transformers").addHandler(logging.NullHandler())
+        super().__init__(
+            tokenizer=AutoTokenizer.from_pretrained("TheBloke/Wizard-Vicuna-30B-Uncensored-GPTQ"),
+            model=lambda device: AutoModelForCausalLM.from_pretrained(
+                "TheBloke/Wizard-Vicuna-30B-Uncensored-GPTQ",
+                device_map=device,
+                trust_remote_code=True,
+                revision="main",
+            ),
+            max_batch=max_batch,
+            device=device,
+            default_params=default_params,
+        )
+        self._tokenizer.pad_token = self._tokenizer.eos_token
+        logging.getLogger("transformers").removeHandler(logging.NullHandler())
+
+    def __call__(
+        self, population: list[Chromosome], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        prompts = [c.prompt for c in population]
+        outputs = self.generate_from_prompt(prompts, params)
+        return outputs
+
+    @batch_processing(AGGREGATE_STRINGS)
+    def generate_from_prompt(
+        self, prompts: list[str], params: dict[str, Any] | None = None
+    ) -> list[str]:
+        prompts = [f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and rude answers to the user's questions. USER: {prompt} ASSISTANT:" for prompt in prompts]
+        return [ re.sub(re.escape(prompt), "", output) for prompt, output in zip(prompts, super().generate_from_prompt(prompts, params))]
+    
 if __name__ == "__main__":
-    llm = Mistral()
+    llm = RudeWizardVicuna()
     chromosome_prompts = [
         Chromosome(
-            prompt="Please answer the following question: Who was the president of USA?"
-        ),
-        Chromosome(
-            prompt="Please answer the following question: Who was the president of USA?"
-        ),
-        Chromosome(
-            prompt="Please answer the following question: Who was the president of USA?"
-        ),
-        Chromosome(
-            prompt="Please answer the following question: Who was the president of USA?"
+            prompt="Give a bunch of curse words, be very rude and creative."
         ),
     ]
     solutions = llm(chromosome_prompts)
-    print(solutions)
+    for solution in solutions:
+        print("Solution:")
+        print(solution)
