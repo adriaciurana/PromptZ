@@ -11,7 +11,7 @@ from chromosome import Chromosome, FixedLengthChromosome, KeywordsChromosome
 from classic.mating_pool import MatingPoolPolicy
 from classic.parents import ParentsPolicy
 from classic.variations import VariationsPolicy
-from llm import LLM, Mistral, Phi2
+from llm import LLM, Mistral, Phi2, Solar
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
 from spacy.cli.download import download as spacy_download
@@ -117,7 +117,6 @@ class KeywordGAGenerator(Generator):
         # Get the default vocabulary.
         self._default_vocab = {
             "nouns": self._init_default_vocab(grammar_code="n"),
-            "verbs": self._init_default_vocab(grammar_code="v"),
             "adj": self._init_default_vocab(grammar_code="a"),
         }
 
@@ -215,6 +214,12 @@ class KeywordGAGenerator(Generator):
                 re.sub(initial_prompt, "", prompt)
                 for initial_prompt, prompt in zip(initial_prompts, prompts)
             ]
+        elif isinstance(self._llm, Solar):
+            prompts = [
+                re.sub(re.escape(initial_prompt), "", prompt)
+                for initial_prompt, prompt in zip(initial_prompts, prompts)
+            ]
+
         return prompts
 
     def _generate_new_generation(
@@ -236,9 +241,10 @@ class KeywordGAGenerator(Generator):
         # List for new generation.
         new_generation = []
 
-        for i in range(k):
+        for _ in range(k):
+            replace = False if initial_population > 1 else True
             parents: list[int] = np.random.choice(
-                range(initial_population), size=2, p=scores_probability
+                range(initial_population), size=2, p=scores_probability, replace=replace
             )
             p1 = population[parents[0]]
             p2 = population[parents[1]]
@@ -264,11 +270,16 @@ class KeywordGAGenerator(Generator):
         initial_prompt = self._keywords_to_prompt([keywords])
         prompt = self._generate_prompts(initial_prompt)
 
+        if p1 == p2:
+            parent_id = p1.id
+        else:
+            parent_id = (p1.id, p2.id)
+
         new_chromosome = self.ChromosomeObject(
-            keywords=keywords,
+            keywords=tuple(set(keywords)),
             prompt=prompt[0],
             by=id(self.__class__),
-            parent_id=(p1.id, p2.id),
+            parent_id=parent_id,
         )
 
         # Mutation 1.
@@ -312,7 +323,7 @@ class KeywordGAGenerator(Generator):
         return initial_prompts
 
     def _get_random_default_vocab(
-        self, n_sample: int, subset_list: list = ["nouns", "verbs", "adj"]
+        self, n_sample: int, subset_list: list = ["nouns", "adj"]
     ) -> list[str]:
         all_words = []
 
@@ -575,7 +586,7 @@ class ComposerGenerator(Generator):
             ):
                 generator, weight = self._generators[key_group]
                 new_variations += generator(
-                    list(population_group), k=int(weight * k), is_initial=True
+                    list(population_group), k=int(weight * k), is_initial=False
                 )
 
             return new_variations
