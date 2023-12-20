@@ -1,3 +1,4 @@
+import textwrap
 import weakref
 from abc import ABC, abstractmethod
 from copy import copy
@@ -141,7 +142,8 @@ class LLMCrossOver(CrossOver):
         super().__init__()
 
     def _crossover_callback(self, cs: tuple[Chromosome, ...]):
-        return f"""
+        return textwrap.dedent(
+            f"""
             Consider the task of classifying between the following intents:
             
             {cs[0].prompt}
@@ -149,6 +151,7 @@ class LLMCrossOver(CrossOver):
 
             Generate a diverse set of one short utterance where each utterance belongs to "{cs[0].prompt}" with the context {self._generator.target}.
         """
+        )
 
     def __call__(
         self,
@@ -234,7 +237,8 @@ class LLMMutator(Mutator):
         super().__init__()
 
     def _mutate_callback(self, cs: tuple[Chromosome, ...]):
-        return f"""
+        return textwrap.dedent(
+            f"""
             Using the following text prompt:
             
             {cs[0].prompt}
@@ -243,6 +247,7 @@ class LLMMutator(Mutator):
             
             {self._generator.target}
         """
+        )
 
     def __call__(
         self,

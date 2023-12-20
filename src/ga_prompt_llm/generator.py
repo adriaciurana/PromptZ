@@ -1,6 +1,7 @@
 import itertools
 import random
 import re
+import textwrap
 from abc import ABC, abstractmethod
 from collections import Counter
 from random import sample
@@ -673,7 +674,7 @@ class LLMSimilarSentencesGenerator(Generator):
                 c_ids = tuple(c.id for c in chromosomes)
 
             replicated_ids += k * [c_ids]
-            candidate_prompts += k * callback(chromosomes)
+            candidate_prompts += k * [callback(chromosomes)]
 
         return [
             self.ChromosomeObject(parent_id=c_ids, prompt=prompt, by=id(self.__class__))
@@ -688,15 +689,17 @@ class LLMSimilarSentencesGenerator(Generator):
 
     def _mutate(self, chromosomes: list[Chromosome], k: int) -> list[Chromosome]:
         def mutate_callback(cs: tuple[Chromosome, ...]):
-            return f"""
+            return textwrap.dedent(
+                f"""
                 Consider the task to create similar sentences given the following sentence:
 
                 {cs[0].prompt}
 
-                Create a similar prompt that can be better if you have to answer the following text:
+                Use the following as a context:
 
                 {self.target}
             """
+            )
 
         return self._generate_by_callback(chromosomes, mutate_callback, k=k)
 
@@ -705,7 +708,8 @@ class LLMSimilarSentencesGenerator(Generator):
     ) -> list[Chromosome]:
         # Based on: https://aclanthology.org/2023.emnlp-main.323.pdf and https://github.com/ServiceNow/promptmix-emnlp-2023/blob/c6f27bac6263e43a5b41dca01d3061edb88a4f35/src/generator/__init__.py#L87
         def mixup_callback(cs: tuple[Chromosome, ...]):
-            return f"""
+            return textwrap.dedent(
+                f"""
                 Consider the task of classifying between the following intents:
 
                 {cs[0].prompt}
@@ -713,5 +717,6 @@ class LLMSimilarSentencesGenerator(Generator):
 
                 Generate a diverse set of one short utterance where each utterance belongs to "{cs[0].prompt}" with the context {self.target}.
             """
+            )
 
         return self._generate_by_callback(chromosomes, mixup_callback, k=k)

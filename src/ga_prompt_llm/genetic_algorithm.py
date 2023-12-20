@@ -1,7 +1,9 @@
 import heapq
 import logging
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 from typing import Any
+from typing import Counter as TCounter
 
 from callbacks import Callbacks, EmptyCallbacks
 from chromosome import Chromosome
@@ -39,6 +41,8 @@ class GeneticAlgorithm:
         generator: Generator,
         evaluator: Evaluator,
         callbacks: Callbacks = EmptyCallbacks(),
+        *,
+        stop_condition_max_iterations_same_best_chromosome=5,
     ) -> None:
         self._llm = llm
         self._population_creator = population_creator
@@ -46,6 +50,10 @@ class GeneticAlgorithm:
         self._generator = generator
         self._evaluator = evaluator
         self._callbacks = callbacks
+
+        self._stop_condition_max_iterations_same_best_chromosome = (
+            stop_condition_max_iterations_same_best_chromosome
+        )
 
     def _filter_population(
         self, population: list[Chromosome], max_population: int
@@ -88,6 +96,9 @@ class GeneticAlgorithm:
         # Initialize hook
         self._callbacks.init(population)
 
+        # Condition stop
+        self._best_chromosome_counter: TCounter[int] = Counter()
+
         # 5. iterate over N iterations
         for iteration in pbar:
             # 6. Generate similar sentences
@@ -112,7 +123,7 @@ class GeneticAlgorithm:
             self._callbacks.filtered_by_populations(
                 iteration, old_population, population
             )
-            
+
             logging.info(f"Filtering {iteration} population.")
 
             best_chromosome: Chromosome = max(population, key=lambda c: c.score)
@@ -123,6 +134,9 @@ class GeneticAlgorithm:
                 {f"best-solution-{k}": v for k, v in best_chromosome_dict.items()}
             )
 
+            if self.evaluate_stop_condition(population, best_chromosome):
+                break
+
         # 9. Filter population
         best_population = self._filter_population(
             population, runtime_config.topk_population
@@ -132,3 +146,13 @@ class GeneticAlgorithm:
         self._callbacks.results(best_population)
 
         return best_population
+
+    def evaluate_stop_condition(
+        self, current_population: list[Chromosome], best_chromosome: Chromosome
+    ):
+        self._best_chromosome_counter[best_chromosome.id] += 1
+        _, best_counter = self._best_chromosome_counter.most_common(1)[0]
+        if best_counter > self._stop_condition_max_iterations_same_best_chromosome:
+            return True
+
+        return False
