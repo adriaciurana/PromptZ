@@ -254,7 +254,7 @@ class KeywordGAGenerator(Generator):
             new_generation.append(new_chromosome)
 
         # Update common vocab.
-        self._update_common_vocab(population)
+        self._update_common_vocab(population + new_generation)
 
         # Return new generation.
         return new_generation
@@ -429,7 +429,7 @@ class KeywordGAGenerator(Generator):
     def _mutation_1(self, chromosome: Chromosome):
         # Swap some genes to the default vocab.
         n_random = np.random.randint(
-            low=1, high=4 if len(chromosome.keywords) > 4 else len(chromosome.keywords)
+            low=1, high=5 if len(chromosome.keywords) > 4 else len(chromosome.keywords)
         )
 
         # Indexes.
@@ -456,7 +456,7 @@ class KeywordGAGenerator(Generator):
     def _mutation_2(self, chromosome: Chromosome):
         # Swap some genes to the input vocab.
         n_random = np.random.randint(
-            low=1, high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
+            low=1, high=4 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
         )
 
         # Indexes.
@@ -483,7 +483,7 @@ class KeywordGAGenerator(Generator):
     def _mutation_3(self, chromosome: Chromosome):
         # Swap some genes to the input vocab.
         n_random = np.random.randint(
-            low=1, high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
+            low=1, high=4 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
         )
 
         # Indexes.
@@ -510,7 +510,7 @@ class KeywordGAGenerator(Generator):
     def _mutation_4(self, chromosome: Chromosome):
         # Swap some genes to the input vocab.
         n_random = np.random.randint(
-            low=1, high=3 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
+            low=1, high=4 if len(chromosome.keywords) > 3 else len(chromosome.keywords)
         )
 
         # Indexes.
