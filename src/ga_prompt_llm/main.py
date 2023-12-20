@@ -31,8 +31,8 @@ from population_creator import GeneratorPopulationCreator
 # )
 
 ga = GeneticAlgorithm(
-    llm=M0(),
-    population_creator=GeneratorPopulationCreator(10),
+    llm=Phi2(),
+    population_creator=GeneratorPopulationCreator(100),
     generator=LLMSimilarSentencesGenerator(),
     evaluator=BERTSimilarityEvaluator(),
 )

@@ -1,10 +1,11 @@
 import heapq
 import logging
-from collections import Counter
+from collections import Counter, deque
 from dataclasses import asdict, dataclass, field
 from typing import Any
 from typing import Counter as TCounter
 
+import numpy as np
 from callbacks import Callbacks, EmptyCallbacks
 from chromosome import Chromosome
 from evaluator import Evaluator
@@ -42,7 +43,9 @@ class GeneticAlgorithm:
         evaluator: Evaluator,
         callbacks: Callbacks = EmptyCallbacks(),
         *,
-        stop_condition_max_iterations_same_best_chromosome=25,
+        stop_condition_max_iterations_same_best_chromosome=100,
+        stop_condition_last_mean_scores_length=30,
+        stop_condition_last_mean_scores_tol=1e-3,
     ) -> None:
         self._llm = llm
         self._population_creator = population_creator
@@ -54,6 +57,10 @@ class GeneticAlgorithm:
         self._stop_condition_max_iterations_same_best_chromosome = (
             stop_condition_max_iterations_same_best_chromosome
         )
+        self._stop_condition_last_mean_scores_length = (
+            stop_condition_last_mean_scores_length
+        )
+        self._stop_condition_last_mean_scores_tol = stop_condition_last_mean_scores_tol
 
     def _filter_population(
         self, population: list[Chromosome], max_population: int
@@ -97,7 +104,10 @@ class GeneticAlgorithm:
         self._callbacks.init(population)
 
         # Condition stop
-        self._best_chromosome_counter: TCounter[int] = Counter()
+        self._stop_condition_best_chromosome_counter: TCounter[int] = Counter()
+        self._stop_condition_last_mean_scores = deque(
+            maxlen=self._stop_condition_last_mean_scores_length
+        )
 
         # 5. iterate over N iterations
         for iteration in pbar:
@@ -130,9 +140,13 @@ class GeneticAlgorithm:
             best_chromosome_dict = {
                 k: getattr(best_chromosome, k) for k in best_chromosome.show
             }
-            pbar.set_infos(
-                {f"best-solution-{k}": v for k, v in best_chromosome_dict.items()}
-            )
+            mean_score = np.mean([c.score for c in population])
+            self._stop_condition_last_mean_scores.append(mean_score)
+
+            # logging
+            infos = {f"best-solution-{k}": v for k, v in best_chromosome_dict.items()}
+            infos.update({"mean-score": mean_score})
+            pbar.set_infos(infos)
 
             if self.evaluate_stop_condition(population, best_chromosome):
                 break
@@ -150,9 +164,14 @@ class GeneticAlgorithm:
     def evaluate_stop_condition(
         self, current_population: list[Chromosome], best_chromosome: Chromosome
     ):
-        self._best_chromosome_counter[best_chromosome.id] += 1
-        _, best_counter = self._best_chromosome_counter.most_common(1)[0]
-        if best_counter > self._stop_condition_max_iterations_same_best_chromosome:
+        self._stop_condition_best_chromosome_counter[best_chromosome.id] += 1
+        _, best_counter = self._stop_condition_best_chromosome_counter.most_common(1)[0]
+        if best_counter > self._stop_condition_max_iterations_same_best_chromosome or (
+            len(self._stop_condition_last_mean_scores)
+            == self._stop_condition_last_mean_scores.maxlen
+            and np.std(self._stop_condition_last_mean_scores)
+            <= self._stop_condition_last_mean_scores_tol
+        ):
             return True
 
         return False

@@ -67,7 +67,7 @@ class BERTSimilarityEvaluator(Evaluator):
         self._target_features = torch.Tensor | None
         self.max_batch = max_batch
 
-        self._remove_re = re.compile(r"(\W)+")
+        self._remove_re = re.compile(r"[^A-Za-z0-9 ]+")
 
     def init(self, llm: LLM, target: str) -> None:
         super().init(llm, target)
@@ -92,7 +92,7 @@ class BERTSimilarityEvaluator(Evaluator):
         )
 
     def _remove_nonletters(self, txt: str):
-        return self._remove_re.sub(txt, "").lower()
+        return self._remove_re.sub("", txt).lower()
 
     def __call__(self, population: list[Chromosome]) -> None:
         assert self._llm is not None
