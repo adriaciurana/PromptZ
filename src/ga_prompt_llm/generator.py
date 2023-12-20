@@ -9,13 +9,11 @@ from typing import Callable
 
 import nltk
 import numpy as np
-import openai
 import spacy
 from chromosome import Chromosome, FixedLengthChromosome, KeywordsChromosome
 from classic.mating_pool import MatingPoolPolicy
 from classic.parents import ParentsPolicy, TournamentSelection
 from classic.variations import LLMCrossOver, LLMMutator, VariationsPolicy
-from dotenv import load_dotenv
 from llm import LLM, Mistral, Phi2, Solar
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
@@ -722,71 +720,3 @@ class LLMSimilarSentencesGenerator(Generator):
             )
 
         return self._generate_by_callback(chromosomes, mixup_callback, k=k)
-
-
-@Regiter("Generator")
-class OpenAIAPILLM(LLM):
-    def __init__(
-        self,
-        max_batch: int = 10,
-        device: str = "cuda:0",
-        openai_model_id: str = "gpt-3.5-turbo-instruct",
-        environ_variable: str = "OPENAI_API_KEY",
-        default_params: dict[str, Any] = {
-            "temperature": 0.8,
-            "max_tokens": 500,
-        },
-    ) -> None:
-        super().__init__(max_batch, device)
-        # Load environment variables.
-        load_dotenv()
-        # Set key.
-        openai.api_key = os.getenv(environ_variable)
-        # Set model id.
-        self._openai_model_id = openai_model_id
-        self._default_params = default_params
-
-    def generate_from_prompt(
-        self, prompts: list[str], params: dict[str, Any] | None = None
-    ) -> list[str]:
-        if params is None:
-            params = {}
-            params.update(self._default_params)
-
-        try:
-            return [
-                re.sub(
-                    "\n",
-                    "",
-                    openai.completions.create(
-                        model=self._openai_model_id,
-                        prompt=prompt,
-                        temperature=params["temperature"],
-                        max_tokens=params["max_tokens"],
-                    )
-                    .choices[0]
-                    .text,
-                ).strip('"')
-                for prompt in prompts
-            ]
-        except:
-            return [
-                re.sub(
-                    "\n",
-                    "",
-                    openai.completions.create(
-                        model=self._openai_model_id,
-                        prompt=prompt,
-                        temperature=0.8,
-                        max_tokens=500,
-                    )
-                    .choices[0]
-                    .text,
-                ).strip('"')
-                for prompt in prompts
-            ]
-
-    def __call__(
-        self, population: list[Chromosome], params: dict[str, Any] | None = None
-    ) -> list[str]:
-        return super().__call__(population, params)
