@@ -77,11 +77,19 @@ class GeneticAlgorithm:
     def __call__(
         self,
         initial_prompt: str,
-        target: str,
+        target: str | None = None,
+        objective: str | None = None,
         runtime_config: RuntimeConfig = RuntimeConfig(),
         *args: dict[str, Any],  # TODO: TBD
         **kwargs: dict[str, Any],  # TODO: TBD
     ) -> list[Chromosome]:
+        if target is None:
+            target = objective
+
+            assert (
+                objective is not None
+            ), "If target is not defined, please define the objective and use the proper evaluator"
+
         pbar = qqdm(range(runtime_config.iterations), total=runtime_config.iterations)
 
         # 1. init the evaluator

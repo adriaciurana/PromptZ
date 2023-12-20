@@ -74,17 +74,19 @@ class BERTSimilarityEvaluator(SimilarityEvaluator):
         self._target_features = torch.Tensor | None
         self.max_batch = max_batch
 
+        self._remove_nonvalid_words = re.compile(r"[^A-Za-z0-9 ]+")
+
     @batch_processing(AGGREGATE_TENSORS)
-    def get_features(self, text: str | list[str]) -> torch.Tensor:
+    def get_features(self, text: list[str]) -> torch.Tensor:
         with torch.no_grad():
             return self._similarity_model.encode(
                 text, convert_to_tensor=True, show_progress_bar=False
             )
-        self._clean_target = self._remove_nonletters(target)
 
     def init(self, llm: LLM, target: str) -> None:
         super().init(llm, target)
-        self._target_features = self.get_features(target)
+        self._target_features = self.get_features([target])
+        self._clean_target = self._remove_nonletters(target)
 
     def _similarity(
         self, target: torch.Tensor, solutions: torch.Tensor
@@ -95,7 +97,7 @@ class BERTSimilarityEvaluator(SimilarityEvaluator):
         # return (target @ solutions.T)[0]
 
     def _remove_nonletters(self, txt: str):
-        return self._remove_re.sub("", txt).lower()
+        return self._remove_nonvalid_words.sub("", txt).lower()
 
     def __call__(self, population: list[Chromosome]) -> None:
         assert self._llm is not None
@@ -139,7 +141,6 @@ class BERTSimilarityEvaluator(SimilarityEvaluator):
 
                 if len(valid_outputs) > 0:
                     valid_outputs_features = self.get_features(valid_outputs)
-
                     valid_scores = self._similarity(
                         self._target_features, valid_outputs_features
                     )
@@ -165,16 +166,18 @@ class ObjectiveBasedEvaluator(Evaluator):
         self._k = k
         self._target_features: torch.Tensor | None = None
 
-    def prepare_target(self, non_blackbox_llm: LLM, target: str) -> None:
+    def prepare_target(self, non_blackbox_llm: LLM, objective: str) -> None:
         # 1. Compute the LLM options
         prompt = f"""Given the following objective: 
-        {target}
+        {objective}
         Generate an answer.
         """
-        outputs = non_blackbox_llm.generate_from_prompt(self._k * [prompt])
+        objective_prompts = non_blackbox_llm.generate_from_prompt(self._k * [prompt])
 
         # 2. Compute the features
-        self._target_features = self._similarity_evaluator.get_features(outputs)
+        self._target_features = self._similarity_evaluator.get_features(
+            objective_prompts
+        )
 
     def init(self, llm: LLM, target: str) -> None:
         super().init(llm, target)
