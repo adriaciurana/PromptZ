@@ -1,14 +1,52 @@
+import weakref
 from abc import ABC, abstractmethod
 from copy import copy
 from random import choice
-from typing import Iterator
+from typing import TYPE_CHECKING, Callable, Iterator
 
 import numpy as np
 import torch
-from chromosome import FixedLengthChromosome
+from chromosome import Chromosome, FixedLengthChromosome
+from llm import LLM
+
+if TYPE_CHECKING:
+    from generator import Generator
 
 NLP_SPACY = None
 NLP_SPACY_LOOKUPS = None
+
+
+def generate_by_callback(
+    ChromosomeObject: Callable,
+    llm: LLM,
+    chromosomes_ntuple: list[tuple[Chromosome, ...] | Chromosome],
+    callback: Callable[[tuple[Chromosome, ...]], str],
+    by: int,
+    k: int,
+):
+    candidate_prompts: list[str] = []
+    replicated_ids: list[int] = []
+    for chromosomes in chromosomes_ntuple:
+        if isinstance(chromosomes, Chromosome):
+            c_ids = chromosomes.id
+            chromosomes = (chromosomes,)
+
+        else:
+            c_ids = tuple(c.id for c in chromosomes)
+
+        replicated_ids += k * [c_ids]
+        candidate_prompts += k * callback(chromosomes)
+
+    return [
+        ChromosomeObject(parent_id=c_ids, prompt=prompt, by=by)
+        for c_ids, prompt in zip(
+            replicated_ids,
+            llm.generate_from_prompt(
+                prompts=candidate_prompts,
+                params={"max_new_tokens": 40, "do_sample": True, "top_k": 50},
+            ),
+        )
+    ]
 
 
 def INIT_SPACY():
@@ -27,21 +65,33 @@ def INIT_SPACY():
         )
 
 
-class CrossOver(ABC):
+class MutatorModule:
+    def __init__(self):
+        self._generator_ref: "Generator" | None = None
+
+    def register(self, generator: "Generator") -> None:
+        self._generator_ref = weakref.ref(generator)
+
+    @property
+    def _generator(self) -> "Generator":
+        return self._generator_ref()
+
+
+class CrossOver(ABC, MutatorModule):
     def __init__(self) -> None:
         super().__init__()
 
     @abstractmethod
     def __call__(
         self,
-        chromosome_a: FixedLengthChromosome,
-        chromosome_b: FixedLengthChromosome,
-        by: str,
-    ) -> FixedLengthChromosome:
+        chromosome_a: Chromosome,
+        chromosome_b: Chromosome,
+        by: int,
+    ) -> Chromosome:
         ...
 
 
-class MixSentences(CrossOver):
+class FixedLengthMixSentences(CrossOver):
     def __init__(self) -> None:
         super().__init__()
 
@@ -49,7 +99,7 @@ class MixSentences(CrossOver):
         self,
         chromosome_a: FixedLengthChromosome,
         chromosome_b: FixedLengthChromosome,
-        by: str,
+        by: int,
     ) -> FixedLengthChromosome:
         assert isinstance(chromosome_a, FixedLengthChromosome) and isinstance(
             chromosome_b, FixedLengthChromosome
@@ -86,18 +136,46 @@ class MixSentences(CrossOver):
         )
 
 
-class Mutator(ABC):
+class LLMCrossOver(CrossOver):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def _crossover_callback(self, cs: tuple[Chromosome, ...]):
+        return f"""
+            Consider the task of classifying between the following intents:
+            
+            {cs[0].prompt}
+            {cs[1].prompt}
+
+            Generate a diverse set of one short utterance where each utterance belongs to "{cs[0].prompt}" with the context {self._generator.target}.
+        """
+
+    def __call__(
+        self,
+        chromosome_a: Chromosome,
+        chromosome_b: Chromosome,
+        by: int,
+    ) -> Chromosome:
+        return generate_by_callback(
+            self._generator.ChromosomeObject,
+            self._generator.llm,
+            [(chromosome_a, chromosome_b)],
+            self._crossover_callback,
+            by,
+            k=1,
+        )[0]
+
+
+class Mutator(ABC, MutatorModule):
     def __init__(self) -> None:
         super().__init__()
 
     @abstractmethod
-    def __call__(
-        self, chromosome: FixedLengthChromosome, by: str
-    ) -> FixedLengthChromosome:
+    def __call__(self, chromosome: Chromosome, by: int) -> Chromosome:
         ...
 
 
-class Noise(Mutator):
+class FixedLengthNoise(Mutator):
     def __init__(self, k: int = 10) -> None:
         super().__init__()
         INIT_SPACY()
@@ -124,7 +202,7 @@ class Noise(Mutator):
         )
 
     def __call__(
-        self, chromosome: FixedLengthChromosome, by: str
+        self, chromosome: FixedLengthChromosome, by: int
     ) -> FixedLengthChromosome:
         words = copy(chromosome.prompt)
         rand_prob = torch.rand(*words.shape) > 0.5
@@ -151,6 +229,36 @@ class Noise(Mutator):
         )
 
 
+class LLMMutator(Mutator):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def _mutate_callback(self, cs: tuple[Chromosome, ...]):
+        return f"""
+            Using the following text prompt:
+            
+            {cs[0].prompt}
+
+            Create a similar prompt that can be better if you have to answer the following text:
+            
+            {self._generator.target}
+        """
+
+    def __call__(
+        self,
+        chromosome: Chromosome,
+        by: int,
+    ) -> Chromosome:
+        return generate_by_callback(
+            self._generator.ChromosomeObject,
+            self._generator.llm,
+            [chromosome],
+            self._mutate_callback,
+            by,
+            k=1,
+        )[0]
+
+
 class VariationsPolicy:
     def __init__(
         self,
@@ -164,11 +272,34 @@ class VariationsPolicy:
         self._prob_to_crossover = prob_to_crossover
         self._prob_to_mutate = prob_to_mutate
 
+        self._generator_ref: "Generator" | None = None
+
+    def register(self, generator: "Generator") -> None:
+        self._generator_ref = weakref.ref(generator)
+        for m in self._mutators + self._crossovers:
+            m.register(generator)
+
+    @property
+    def _generator(self) -> "Generator":
+        return self._generator_ref()
+
+    def init(
+        self, population: list[Chromosome], k: int, by: int
+    ) -> Iterator[Chromosome]:
+        for c in population:
+            for _ in range(k):
+                mutator_method = choice(self._mutators)
+                c = mutator_method(c, by=by)
+
+                yield c
+
+        yield from ()
+
     def __call__(
         self,
-        pair_parents: Iterator[tuple[FixedLengthChromosome, FixedLengthChromosome]],
-        by: str,
-    ) -> Iterator[FixedLengthChromosome]:
+        pair_parents: Iterator[tuple[Chromosome, Chromosome]],
+        by: int,
+    ) -> Iterator[Chromosome]:
         for c_a, c_b in pair_parents:
             if np.random.rand() < self._prob_to_crossover:
                 crossover_method = choice(self._crossovers)
