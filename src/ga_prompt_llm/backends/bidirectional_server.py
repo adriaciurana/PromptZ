@@ -11,7 +11,7 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 import tornado.wsgi
-from tornado.options import define, options, parse_command_line
+from tornado.options import define, options
 
 sys.path.append(str(Path(__file__).parent / "../"))
 
@@ -38,6 +38,10 @@ CACHED_LLMS: dict[str, LLM] = CacheWithRegister(
 define("port", type=int, default=BI_PORT)
 
 PROJECT_PATH = Path(__file__).parent / "../"
+
+tornado.autoreload.start()
+tornado.autoreload.watch(str(PROJECT_PATH / "frontend/index.html"))
+tornado.autoreload.watch(str(PROJECT_PATH / "frontend/index.html"))
 
 
 class Website(tornado.web.RequestHandler):
@@ -146,7 +150,7 @@ def run(params: dict[str, Any], connection: "WebsocketCommunication"):
     )
 
     # Let's start the party! Run the algorithm!
-    chromosomes: list[Chromosome] = genetic_algorithm(
+    genetic_algorithm(
         initial_prompt=initial_prompt, target=target, runtime_config=runtime_config
     )
 
@@ -169,16 +173,9 @@ class WebsocketCommunication(tornado.websocket.WebSocketHandler):
         message_json = json.loads(message)
         COMMANDS[message_json["cmd"]](message_json["params"], self)
 
-        # print("msg recevied", message)
-        # msg = json.loads(message)  # todo: safety?
-
-        # # send other clients this message
-        # for c in WebsocketCommunication.clients:
-        #     if c != self:
-        #         c.write_message(msg)
-
     def on_close(self):
         print("WebSocket closed")
+
         # clients must be accessed through class object!!!
         WebsocketCommunication.clients.remove(self)
 
@@ -193,6 +190,7 @@ def main():
     )
     server = tornado.httpserver.HTTPServer(tornado_app)
     server.listen(options.port)
+    print(f"Bidireccional server running in http://localhost:{BI_PORT}")
     tornado.ioloop.IOLoop.instance().start()
 
 
