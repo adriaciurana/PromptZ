@@ -38,6 +38,9 @@ requests = "^2.31.0"
 pytest = "^7.4.3"
 pyhypercycle-aim = {git = "https://github.com/hypercycle-development/pyhypercycle-aim.git"}
 spacy = "^3.7.2"
+openai = "^1.6.0"
+python-dotenv = "^1.0.0"
+nltk = "^3.8.1"
 
 
 [[tool.poetry.source]]
