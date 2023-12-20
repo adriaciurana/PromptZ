@@ -1,16 +1,19 @@
 import itertools
 import random
 import re
+import textwrap
 from abc import ABC, abstractmethod
 from collections import Counter
+from random import sample
+from typing import Callable
 
 import nltk
 import numpy as np
 import spacy
 from chromosome import Chromosome, FixedLengthChromosome, KeywordsChromosome
 from classic.mating_pool import MatingPoolPolicy
-from classic.parents import ParentsPolicy
-from classic.variations import VariationsPolicy
+from classic.parents import ParentsPolicy, TournamentSelection
+from classic.variations import LLMCrossOver, LLMMutator, VariationsPolicy
 from llm import LLM, Mistral, Phi2, Solar
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
@@ -22,12 +25,12 @@ class Generator(ABC):
     ChromosomeObject = Chromosome
 
     def __init__(self) -> None:
-        self._llm: LLM | None = None
-        self._target: LLM | None = None
+        self.llm: LLM | None = None
+        self.target: LLM | None = None
 
     def init(self, llm: LLM, target: str) -> None:
-        self._llm = llm
-        self._target = target
+        self.llm = llm
+        self.target = target
 
     @abstractmethod
     def __call__(
@@ -48,7 +51,7 @@ class MockGenerator(Generator):
             assert (
                 len(population) == 1
             ), "For the first population, you need to provide only one chromosome"
-        assert self._llm is not None and self._target is not None
+        assert self.llm is not None and self.target is not None
 
         return [
             self.ChromosomeObject(
@@ -58,48 +61,6 @@ class MockGenerator(Generator):
             )
             for c_idx, c in enumerate(population)
             for _ in range(k)
-        ]
-
-
-@Register("Generator")
-class LLMSimilarSentencesGenerator(Generator):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def __call__(
-        self, population: list[Chromosome], k: int, is_initial: bool = False
-    ) -> list[Chromosome]:
-        if is_initial:
-            assert (
-                len(population) == 1
-            ), "For the first population, you need to provide only one chromosome"
-        assert self._llm is not None and self._target is not None
-
-        candidate_prompts: list[str] = []
-        replicated_ids: list[int] = []
-        for c in population:
-            replicated_ids += k * [c.id]
-            candidate_prompts += k * [
-                f"""
-                Using the following text prompt:
-                
-                {c.prompt}
-
-                Create a similar prompt that can be better if you have to answer the following text:
-                
-                {self._target}
-            """
-            ]
-
-        return [
-            self.ChromosomeObject(parent_id=c_id, prompt=prompt, by=id(self.__class__))
-            for c_id, prompt in zip(
-                replicated_ids,
-                self._llm.generate_from_prompt(
-                    prompts=candidate_prompts,
-                    params={"max_new_tokens": 40, "do_sample": True, "top_k": 50},
-                ),
-            )
         ]
 
 
@@ -185,12 +146,12 @@ class KeywordGAGenerator(Generator):
     def __call__(
         self, population: list[KeywordsChromosome], k: int, is_initial: bool = False
     ) -> list[KeywordsChromosome]:
-        assert self._llm is not None and self._target is not None
+        assert self.llm is not None and self.target is not None
 
         # Set initial prompt.
         if self._input_vocab is None:
             self.set_input_vocab(
-                initial_prompt=population[0].prompt, target=self._target
+                initial_prompt=population[0].prompt, target=self.target
             )
 
         if is_initial:
@@ -204,17 +165,17 @@ class KeywordGAGenerator(Generator):
         return self._generate_new_generation(population, k)
 
     def _generate_prompts(self, initial_prompts):
-        prompts = self._llm.generate_from_prompt(
+        prompts = self.llm.generate_from_prompt(
             prompts=initial_prompts,
             params={"max_new_tokens": 100, "do_sample": True, "top_k": 50},
         )
 
-        if isinstance(self._llm, Phi2):
+        if isinstance(self.llm, Phi2):
             prompts = [
                 re.sub(initial_prompt, "", prompt)
                 for initial_prompt, prompt in zip(initial_prompts, prompts)
             ]
-        elif isinstance(self._llm, Solar):
+        elif isinstance(self.llm, Solar):
             prompts = [
                 re.sub(re.escape(initial_prompt), "", prompt)
                 for initial_prompt, prompt in zip(initial_prompts, prompts)
@@ -314,7 +275,7 @@ class KeywordGAGenerator(Generator):
             initial_prompt = f"Generate an LLM prompt input that contains the following keywords: {formatted_keywords}."
 
             # Add tokens for mistral.
-            if isinstance(self._llm, Mistral):
+            if isinstance(self.llm, Mistral):
                 initial_prompt = f"<s>[INST]{initial_prompt}[/INST]"
 
             # Initial prompts.
@@ -594,9 +555,6 @@ class ComposerGenerator(Generator):
 
 @Register("Generator")
 class ClassicGenerator(Generator):
-    def ChromosomeObject(self, *args, **kwargs) -> FixedLengthChromosome:
-        return FixedLengthChromosome(*args, **kwargs, mutable_mask=self._mutable_mask)
-
     def __init__(
         self,
         parents_policy: ParentsPolicy,
@@ -610,10 +568,19 @@ class ClassicGenerator(Generator):
         self._mating_pool_policy = mating_pool_policy
         self._variations_policy = variations_policy
 
-    def __call__(self, population: list[Chromosome], k: int) -> list[Chromosome]:
+        self._variations_policy.register(self)
+
+    def __call__(
+        self, population: list[Chromosome], k: int, is_initial: bool = False
+    ) -> list[Chromosome]:
+        if is_initial:
+            return list(
+                self._variations_policy.init(population, by=id(self.__class__), k=k)
+            )
+
         # 1. Choose the population that can breed (tournament selection)
         # https://en.wikipedia.org/wiki/Tournament_selection#:~:text=Tournament%20selection%20is%20a%20method,at%20random%20from%20the%20population.
-        best_parents = self._parents_policy(population)
+        best_parents = list(self._parents_policy(population))
 
         # 2. Pair the parents
         # https://stats.stackexchange.com/questions/581426/how-pairs-of-actual-parents-are-formed-from-the-mating-pool-in-nsga-ii
@@ -621,3 +588,135 @@ class ClassicGenerator(Generator):
 
         # 3. Variations
         return list(self._variations_policy(pair_parents, by=id(self.__class__)))
+
+
+@Register("Generator")
+class LLMSimilarSentencesGeneratorNotEfficient(Generator):
+    # TODO: Redefine the API and merge with the classic generator
+    # Not efficient if you want to use batch
+    def __init__(self, num_parents: int = 100) -> None:
+        self._internal_generator: Generator = ClassicGenerator(
+            parents_policy=TournamentSelection(num_parents),
+            mating_pool_policy=MatingPoolPolicy(),
+            variations_policy=VariationsPolicy(
+                crossovers=[LLMCrossOver()], mutators=[LLMMutator()]
+            ),
+        )
+
+    @property
+    def llm(self) -> LLM:
+        return self._internal_generator.llm
+
+    @property
+    def target(self) -> LLM:
+        return self._internal_generator.target
+
+    def init(self, llm: LLM, target: str) -> None:
+        self._internal_generator.init(llm, target)
+
+    def __call__(
+        self, population: list[Chromosome], k: int, is_initial: bool = False
+    ) -> list[Chromosome]:
+        return self._internal_generator(population, k, is_initial=is_initial)
+
+
+@Register("Generator")
+class LLMSimilarSentencesGenerator(Generator):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(
+        self, population: list[Chromosome], k: int, is_initial: bool = False
+    ) -> list[Chromosome]:
+        if is_initial:
+            return self._mutate(population, k=k)
+
+        # Mixin and mutate by the prob.
+        to_mixup: list[tuple[Chromosome, Chromosome]] = []
+        to_mutate: list[Chromosome] = []
+
+        p = np.array([c.score for c in population])
+        p += p.min()
+        p /= sum(p)
+        indices = list(range(len(population)))
+
+        # Mixup
+        parents_pool = np.random.choice(indices, size=k, replace=True, p=p).tolist()
+        for _ in range(k // 2):
+            c_a_id, c_b_id = sample(parents_pool, k=2)
+            to_mixup.append((population[c_a_id], population[c_b_id]))
+
+        new_variations = self._mixup(to_mixup, k=1)
+
+        # Mutate
+        for _ in range(k - k // 2):
+            selected_to_mutate_id = np.random.choice(indices, p=p)
+            to_mutate.append(population[selected_to_mutate_id])
+
+        new_variations += self._mutate(to_mutate, k=1)
+
+        return new_variations
+
+    def _generate_by_callback(
+        self,
+        chromosomes_ntuple: list[tuple[Chromosome, ...] | Chromosome],
+        callback: Callable[[tuple[Chromosome, ...]], str],
+        k: int,
+    ):
+        candidate_prompts: list[str] = []
+        replicated_ids: list[int] = []
+        for chromosomes in chromosomes_ntuple:
+            if isinstance(chromosomes, Chromosome):
+                c_ids = chromosomes.id
+                chromosomes = (chromosomes,)
+
+            else:
+                c_ids = tuple(c.id for c in chromosomes)
+
+            replicated_ids += k * [c_ids]
+            candidate_prompts += k * [callback(chromosomes)]
+
+        return [
+            self.ChromosomeObject(parent_id=c_ids, prompt=prompt, by=id(self.__class__))
+            for c_ids, prompt in zip(
+                replicated_ids,
+                self.llm.generate_from_prompt(
+                    prompts=candidate_prompts,
+                    params={"max_new_tokens": 40, "do_sample": True, "top_k": 50},
+                ),
+            )
+        ]
+
+    def _mutate(self, chromosomes: list[Chromosome], k: int) -> list[Chromosome]:
+        def mutate_callback(cs: tuple[Chromosome, ...]):
+            return textwrap.dedent(
+                f"""
+                Consider the task to create similar sentences given the following sentence:
+
+                {cs[0].prompt}
+
+                Use the following as a context:
+
+                {self.target}
+            """
+            )
+
+        return self._generate_by_callback(chromosomes, mutate_callback, k=k)
+
+    def _mixup(
+        self, chromosomes: list[tuple[Chromosome, Chromosome]], k: int
+    ) -> list[Chromosome]:
+        # Based on: https://aclanthology.org/2023.emnlp-main.323.pdf and https://github.com/ServiceNow/promptmix-emnlp-2023/blob/c6f27bac6263e43a5b41dca01d3061edb88a4f35/src/generator/__init__.py#L87
+        def mixup_callback(cs: tuple[Chromosome, ...]):
+            return textwrap.dedent(
+                f"""
+                Consider the task of classifying between the following intents:
+
+                {cs[0].prompt}
+                {cs[1].prompt}
+
+                Generate a diverse set of one short utterance where each utterance belongs to "{cs[0].prompt}" with the context {self.target}.
+            """
+            )
+
+        return self._generate_by_callback(chromosomes, mixup_callback, k=k)
