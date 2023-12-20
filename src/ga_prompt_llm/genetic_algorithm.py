@@ -16,7 +16,6 @@ logging.getLogger().setLevel(logging.INFO)  # configure root logger
 
 # Use as reference: https://towardsdatascience.com/genetic-algorithms-for-natural-language-processing-b055aa7c14e9
 
-
 class GeneticAlgorithm:
     @dataclass
     class RuntimeConfig:
@@ -63,6 +62,9 @@ class GeneticAlgorithm:
         self,
         initial_prompt: str,
         target: str,
+        new_target: str | None = None,
+        init_generator: bool = True,
+        init_evaluator: bool = True,
         runtime_config: RuntimeConfig = RuntimeConfig(),
         *args: dict[str, Any],  # TODO: TBD
         **kwargs: dict[str, Any],  # TODO: TBD
@@ -70,11 +72,14 @@ class GeneticAlgorithm:
         pbar = qqdm(range(runtime_config.iterations), total=runtime_config.iterations)
 
         # 1. init the evaluator
-        self._evaluator.init(self._llm, target)
+        if init_evaluator:
+            self._evaluator.init(self._llm, target)
         logging.info("Init evaluator. Done")
 
         # 2. init the generator
-        self._generator.init(self._llm, target)
+        # 1. init the evaluator
+        if init_generator:
+            self._generator.init(self._llm, target)
         logging.info("Init generator. Done")
 
         # 3. create the initial population
@@ -132,3 +137,27 @@ class GeneticAlgorithm:
         self._callbacks.results(best_population)
 
         return best_population
+
+class GeneticAlgorithmLauncher():
+
+    def __init__(
+        self,
+        llm: LLM,
+        population_creator: PopulationCreator,
+        generator: Generator,
+        evaluator: Evaluator,
+        callbacks: Callbacks = EmptyCallbacks(),
+        objective: str = "similarity",
+        llm_objective: LLM = None
+    ) -> None:
+        self._llm = llm
+        self._population_creator = population_creator
+
+        self._generator = generator
+        self._evaluator = evaluator
+        self._callbacks = callbacks
+
+        self._objective = objective
+        self._llm_objective = llm_objective
+    
+    

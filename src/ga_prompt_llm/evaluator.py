@@ -144,3 +144,16 @@ class BERTSimilarityEvaluator(Evaluator):
             valid_scores,
         ):
             c.score = float(score)
+
+@Register("Evaluator")
+class BERTSimilarityObjectiveEvaluator(BERTSimilarityEvaluator):
+    def __init__(self, device: str = "cuda:0", max_batch: int = 10) -> None:
+        super().__init__(device=device, max_batch=max_batch)
+    
+    def init(self, llm: LLM, target: str) -> None:
+        super().init(llm, target)
+        with torch.no_grad():
+            self._target_features = self._similarity_model.encode(
+                target, convert_to_tensor=True
+            )
+        
