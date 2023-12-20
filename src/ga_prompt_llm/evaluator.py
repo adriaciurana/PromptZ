@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -66,12 +67,15 @@ class BERTSimilarityEvaluator(Evaluator):
         self._target_features = torch.Tensor | None
         self.max_batch = max_batch
 
+        self._remove_re = re.compile(r"(\W)+")
+
     def init(self, llm: LLM, target: str) -> None:
         super().init(llm, target)
         with torch.no_grad():
             self._target_features = self._similarity_model.encode(
                 target, convert_to_tensor=True
             )
+        self._clean_target = self._remove_nonletters(target)
 
     def _similarity(
         self, target: torch.Tensor, solutions: torch.Tensor
@@ -86,6 +90,9 @@ class BERTSimilarityEvaluator(Evaluator):
         return self._similarity_model.encode(
             prompts, convert_to_tensor=True, show_progress_bar=False
         )
+
+    def _remove_nonletters(self, txt: str):
+        return self._remove_re.sub(txt, "").lower()
 
     def __call__(self, population: list[Chromosome]) -> None:
         assert self._llm is not None
@@ -113,10 +120,13 @@ class BERTSimilarityEvaluator(Evaluator):
                 for output, c in zip(outputs, nonscored_population):
                     c.output = output
 
+                    clean_output = self._remove_nonletters(c.output)
+                    clean_prompt = self._remove_nonletters(c.prompt)
+
                     if (
-                        self._target not in c.prompt
-                        and c.output not in c.prompt
-                        and c.prompt not in c.output
+                        self._clean_target not in clean_prompt
+                        and clean_output not in clean_prompt
+                        and clean_prompt not in clean_output
                     ) or self._llm.IS_NAIVE:
                         valid_outputs.append(output)
                         valid_nonscored_population.append(c)

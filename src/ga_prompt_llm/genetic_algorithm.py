@@ -42,7 +42,7 @@ class GeneticAlgorithm:
         evaluator: Evaluator,
         callbacks: Callbacks = EmptyCallbacks(),
         *,
-        stop_condition_max_iterations_same_best_chromosome=5,
+        stop_condition_max_iterations_same_best_chromosome=25,
     ) -> None:
         self._llm = llm
         self._population_creator = population_creator
