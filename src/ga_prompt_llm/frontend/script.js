@@ -1,8 +1,8 @@
 var DEFAULT_PARAMS = {
     "runtime_config": {
         "max_population": 5,
-        "topk_population": 3,
-        "iterations": 1,
+        "topk_population": 10,
+        "iterations": 10,
         "generator_samples": 5,
     },
     "llm": "MockLLM", // M0
@@ -71,7 +71,7 @@ function hide_left_side(){
 }
 
 function recompute_topk(){
-    let html_topk = "";
+    let html_topk = "<div>The following prompts are best suited for your purpose -</div>";
 
     let chromosomes = [];
     for(let chromosome_id in CHROMOSOMES){
@@ -89,7 +89,7 @@ function recompute_topk(){
     for(let i = 0; i < DEFAULT_PARAMS["runtime_config"]["topk_population"]; i++){
         let chromosome = chromosomes[i];
 
-        html_topk += "<div class='border w-full text-sm bg-white rounded-md border-[#E0E0E0] pt-5'> <div class='px-5'> <div class='opacity-50 text-black text-sm font-semibold'>Prompt</div> <div class='text-black text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-black'></div> <div class='flex w-full items-center justify-between'> <div class='opacity-50 text-black text-sm font-bold'>Response</div> </div> <div class='text-black text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-[#FEFFF5] rounded-bl-[5px] rounded-br-[5px] border border-neutral-200'> Score: " + chromosome['score'] + " </div> </div>";
+        html_topk += "<div class='border w-full text-sm bg-white rounded-md border-[#E0E0E0] pt-5'> <div class='px-5'> <div class='opacity-50 text-black text-sm font-semibold'>Prompt</div> <div class='text-black text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-black'></div> <div class='flex w-full items-center justify-between'></div> <div class='opacity-50 text-black text-sm font-semibold'>Response</div>  <div class='text-black text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-[#FEFFF5] rounded-bl-[5px] rounded-br-[5px] border border-neutral-200 text-black'> Score: " + chromosome['score'] + " </div> </div>";
     }
 
     $(".topk-menu .list").html(html_topk);
@@ -98,7 +98,7 @@ function recompute_topk(){
 
 function show_node(id){
     let chromosome = CHROMOSOMES[NODE_JSID_TO_ID[id]];
-    let chromosome_html = "<div class='p-1'><div class='border w-full text-sm bg-white rounded-md border-[#E0E0E0] pt-5'> <div class='px-5'> <div class='opacity-50 text-black text-sm font-semibold'>Prompt</div> <div class='text-black text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-black'></div> <div class='flex w-full items-center justify-between'> <div class='opacity-50 text-black text-sm font-bold'>Response</div> </div> <div class='text-black text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-[#FEFFF5] rounded-bl-[5px] rounded-br-[5px] border border-neutral-200'> Score: " + chromosome['score'] + " </div> </div></div>";
+    let chromosome_html = "<div class='p-1'><div class='w-full text-sm bg-zinc-800 rounded-md pt-5'> <div class='px-5'> <div class='opacity-50 text-[#FFFFFF] text-sm font-semibold'>Prompt</div> <div class='text-[#FFFFFF] text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-[272727]'></div> <div class='flex w-full items-center justify-between'> </div><div class='opacity-50 text-[#FFFFFF] text-sm font-semibold'>Response</div> <div class='text-[#FFFFFF] text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-zinc-900 rounded-bl-[5px] rounded-br-[5px] text-[#FFFFFF]'> Score: " + chromosome['score'] + " </div> </div></div>";
     $(".show-menu").html(chromosome_html);
 }
 
@@ -115,7 +115,8 @@ function start_btn(){
     $(".hide_btn").removeClass("hidden")        
     $(".d3-component").removeClass("hidden")
     $(".right-side").removeClass("hidden")
-    $(".left-side").addClass("overflow-y-auto")
+    $(".left-side").addClass("overflow-y-scroll")
+    $(".left-side").removeClass("bg-white m-16 border border-[#E0E0E0] h-fit")
     $(".d3-component").addClass("w-full bg-black")
     params['initial_prompt'] = initial_prompt;
     params['target'] = target;
