@@ -94,12 +94,17 @@
       h2 {
         color: black;
       }
+
+      .hide-overflow{
+        overflow: hidden !important;
+        height: 0 in !important;
+      }
     </style>
   </head>
   <body>
     <h1 id="message-connecting">Connecting to the server... Wait...</h1>
 
-    <section id="root" style="display: none;">
+    <section id="root" class="hide-overflow">
       <div
         class=" flex fixed overflow-y-scroll top-0 w-full h-screen bg-[#F6F6F6] justify-center items-center"
       >
@@ -150,8 +155,6 @@
                 </div>
               </div>
 
-              <!-- <div class="text-white text-3xl">hiii</div>
-              <img src="logo.png" alt="logo" /> -->
 
               <div class="field w-full flex flex-col">
                 <label class="label mt-5 ">Guess a prompt:</label>
@@ -167,27 +170,19 @@
             </div>
 
             <div class="topk-menu" style="display: none">
-              <!-- <h2>Target: <span class="target-txt"></span></h2>
-              <h2>Iteration: <span class="iteration-txt"></span></h2>
-              <h2>Topk Chromosomes:</h2> -->
               <div class="list flex flex-col gap-5 mt-5"></div>
             </div>
 
             <br />
-            <!-- <button onclick="start_btn()" class="start-btn button is-success">
-              Click here to start!
-            </button> -->
 
             <div class="inline-block ">
               <button onclick="on_start()" class='start-btn button bg-[#77FFB7] px-[19.11px] py-[9.25px] rounded-[5px] border border-black justify-center items-center gap-[6.16px]
               text-black text-sm font-bold flex gap-2 items-center'>
-                <!-- <Image src={'/img/refine.svg'} height={12} width={12} alt='refine' /> -->
                 Refine Prompt
               </button>
           </div>
           </div>
 
-          <!-- <div class="hide_btn hidden" onclick="hide_left_side()">Hide</div> -->
           <div class="column right-side h-full bg-black hidden">
             <div id="d3_node" class="d3-component flex flex-col w-full h-full relative">
               <div class="flex flex-col w-full rounded-md bg-zinc-800">

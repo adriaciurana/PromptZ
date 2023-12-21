@@ -2,7 +2,7 @@ var DEFAULT_PARAMS = {
     "runtime_config": {
         "max_population": 5,
         "topk_population": 10,
-        "iterations": 10,
+        "iterations": 2,
         "generator_samples": 5,
     },
     "config_name": "",
@@ -39,21 +39,6 @@ function finish_progress_bar(current_iteration) {
     // add class as green color
     $(".progressBar").addClass("w-[" + percentage + "%] bg-green-500");
 }
-
-// function hide_left_side(){
-//     let btn = $(".hide_btn");
-//     let right_side = $(".right-side");
-//     if(btn.hasClass("active")){
-//         right_side.show();
-//         btn.html("Hide");
-//         btn.removeClass("active");
-//     }else{
-//         right_side.hide();
-//         btn.html("Show");
-//         btn.addClass("active");
-
-//     }
-// }
 
 function recompute_topk(){
     let html_topk = "<div>The following prompts are best suited for your purpose -</div>";
@@ -271,7 +256,7 @@ function open_ws(){
         // Web Socket is connected, send data using send()
         console.log("ws open");
         send_cmd("get_configurations");
-        $("#root").show();
+        $("#root").removeClass("hide-overflow");
         $("#message-connecting").hide();
     };
 
