@@ -1,4 +1,5 @@
 import re
+import textwrap
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -55,9 +56,111 @@ class MockEvaluator(Evaluator):
             c.score = 2 * np.random.rand() - 1  # Simulate cosine similarity
 
 
+class SimilarityEvaluator(Evaluator, ABC):
+    @abstractmethod
+    def get_features(self, text: str | list[str]) -> torch.Tensor:
+        ...
+
+
+class SimilarityFunction:
+    def __init__(self):
+        ...
+
+    def init(self, similarity_evaluator: "SimilarityEvaluator") -> None:
+        ...
+
+    def __call__(self, target: torch.Tensor, solutions: torch.Tensor) -> torch.Tensor:
+        # Target: 1 x dim
+        # Solutions: N x dim
+        return util.pytorch_cos_sim(target, solutions)
+        # output: 1 x N
+        # return (target @ solutions.T)[0]
+
+
+class NonDesiredSimilarityFunction(SimilarityFunction):
+    def __init__(
+        self,
+        nondesired_sentences: list[str] = [],
+        threshold: float = 0.75,
+        similarity_function: SimilarityFunction = SimilarityFunction(),
+    ):
+        super().__init__()
+        assert (
+            len(nondesired_sentences) > 0
+        ), "At least you need one non-desired sentence."
+        self._similarity_function = similarity_function
+        self._nondesired_sentences = nondesired_sentences
+        self._threshold = threshold
+        self._nondesired_sentences_features: torch.Tensor | None = None
+
+    def init(self, similarity_evaluator: "SimilarityEvaluator") -> None:
+        self._nondesired_sentences_features = similarity_evaluator.get_features(
+            self._nondesired_sentences
+        )
+        self._similarity_function.init(similarity_evaluator)
+
+    def __call__(self, target: torch.Tensor, solutions: torch.Tensor) -> torch.Tensor:
+        # 1. check if its close to a nondesired sentence
+        nondesired_scores = torch.max(
+            self._similarity_function(self._nondesired_sentences_features, solutions),
+            dim=0,
+        )[0]
+
+        invalid_solutions = nondesired_scores >= self._threshold
+        scores = self._similarity_function(target, solutions)
+        scores[0, invalid_solutions] = -1.0
+        return scores
+
+
+class ObjectiveBasedSimilarityFunction(SimilarityFunction):
+    def __init__(
+        self,
+        non_blackbox_llm: LLM,
+        objective: str,
+        k: int,
+        similarity_function: SimilarityFunction = SimilarityFunction(),
+    ):
+        super().__init__()
+        self._similarity_function = similarity_function
+        self._objective = objective
+        self._k = k
+        self._target_features: torch.Tensor | None = None
+
+        # Compute the targets from the objective
+        objective_prompt = textwrap.dedent(
+            f"""
+            Given the following objective: 
+            {objective}
+            Generate an answer.
+            """
+        )
+        self._generated_targets_from_the_objective = (
+            non_blackbox_llm.generate_from_prompt(self._k * [objective_prompt])
+        )
+
+    def init(self, similarity_evaluator: "SimilarityEvaluator") -> None:
+        self._target_features = similarity_evaluator.get_features(
+            self._generated_targets_from_the_objective
+        )
+        self._similarity_function.init(similarity_evaluator)
+
+    def __call__(self, target: torch.Tensor, solutions: torch.Tensor) -> torch.Tensor:
+        # Consider only the targets that the LLM creates from the objective
+        scores = torch.max(
+            self._similarity_function(self._target_features, solutions),
+            dim=0,
+        )
+        return scores
+
+
 @Register("Evaluator")
-class BERTSimilarityEvaluator(Evaluator):
-    def __init__(self, device: str = "cuda:0", max_batch: int = 10) -> None:
+class BERTSimilarityEvaluator(SimilarityEvaluator):
+    def __init__(
+        self,
+        device: str = "cuda:0",
+        max_batch: int = 10,
+        similarity_function: SimilarityFunction = SimilarityFunction(),
+    ) -> None:
         super().__init__()
 
         self.device = device if torch.cuda.is_available() else "cpu"
@@ -67,32 +170,25 @@ class BERTSimilarityEvaluator(Evaluator):
         self._target_features = torch.Tensor | None
         self.max_batch = max_batch
 
-        self._remove_re = re.compile(r"[^A-Za-z0-9 ]+")
+        self._remove_nonvalid_words = re.compile(r"[^A-Za-z0-9 ]+")
+
+        self._similarity_function = similarity_function
+        self._similarity_function.init(self)
+
+    @batch_processing(AGGREGATE_TENSORS)
+    def get_features(self, text: list[str]) -> torch.Tensor:
+        with torch.no_grad():
+            return self._similarity_model.encode(
+                text, convert_to_tensor=True, show_progress_bar=False
+            )
 
     def init(self, llm: LLM, target: str) -> None:
         super().init(llm, target)
-        with torch.no_grad():
-            self._target_features = self._similarity_model.encode(
-                target, convert_to_tensor=True
-            )
+        self._target_features = self.get_features([target])
         self._clean_target = self._remove_nonletters(target)
 
-    def _similarity(
-        self, target: torch.Tensor, solutions: torch.Tensor
-    ) -> torch.Tensor:
-        # Target: 1 x dim
-        # Solutions: N x dim
-        return util.pytorch_cos_sim(target, solutions)[0]
-        # return (target @ solutions.T)[0]
-
-    @batch_processing(AGGREGATE_TENSORS)
-    def _similarity_model_encode(self, prompts: list[str]) -> torch.Tensor:
-        return self._similarity_model.encode(
-            prompts, convert_to_tensor=True, show_progress_bar=False
-        )
-
     def _remove_nonletters(self, txt: str):
-        return self._remove_re.sub("", txt).lower()
+        return self._remove_nonvalid_words.sub("", txt).lower()
 
     def __call__(self, population: list[Chromosome]) -> None:
         assert self._llm is not None
@@ -135,16 +231,13 @@ class BERTSimilarityEvaluator(Evaluator):
                         invalid_nonscored_population.append(c)
 
                 if len(valid_outputs) > 0:
-                    valid_outputs_features = self._similarity_model_encode(
-                        valid_outputs
-                    )
-
-                    valid_scores = self._similarity(
+                    valid_outputs_features = self.get_features(valid_outputs)
+                    valid_scores = self._similarity_function(
                         self._target_features, valid_outputs_features
-                    )
+                    )[0]
 
                 else:
-                    valid_scores: list[torch.Tensor] = []
+                    valid_scores: list[float] = []
 
         for c in invalid_nonscored_population:
             c.score = -1.0
