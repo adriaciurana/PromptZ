@@ -76,7 +76,7 @@ class HuggingFaceLLM(LLM):
     ) -> None:
         super().__init__(max_batch, device)
         self._tokenizer = tokenizer
-        self._model = model(device)
+        self._model = model(self.device)
 
         self._default_params = default_params
 

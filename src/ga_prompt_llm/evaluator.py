@@ -165,7 +165,7 @@ class BERTSimilarityEvaluator(SimilarityEvaluator):
 
         self.device = device if torch.cuda.is_available() else "cpu"
         self._similarity_model = SentenceTransformer(
-            "sentence-transformers/all-MiniLM-L6-v2", device=device
+            "sentence-transformers/all-MiniLM-L6-v2", device=self.device
         )
         self._target_features = torch.Tensor | None
         self.max_batch = max_batch
