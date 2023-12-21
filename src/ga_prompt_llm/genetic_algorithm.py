@@ -92,14 +92,12 @@ class GeneticAlgorithm:
         pbar = qqdm(range(runtime_config.iterations), total=runtime_config.iterations)
 
         # 1. init the evaluator
-        if init_evaluator:
-            self._evaluator.init(self._llm, target)
+        self._evaluator.init(self._llm, target)
         logging.info("Init evaluator. Done")
 
         # 2. init the generator
         # 1. init the evaluator
-        if init_generator:
-            self._generator.init(self._llm, target)
+        self._generator.init(self._llm, target)
         logging.info("Init generator. Done")
 
         # 3. create the initial population
