@@ -401,7 +401,7 @@ class RudeWizardVicuna(HuggingFaceLLM):
         ]
 
 
-@Register("Generator")
+@Register("LLM")
 class OpenAIAPILLM(LLM):
     def __init__(
         self,

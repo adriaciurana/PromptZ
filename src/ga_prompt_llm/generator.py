@@ -14,7 +14,7 @@ from chromosome import Chromosome, FixedLengthChromosome, KeywordsChromosome
 from classic.mating_pool import MatingPoolPolicy
 from classic.parents import ParentsPolicy, TournamentSelection
 from classic.variations import LLMCrossOver, LLMMutator, VariationsPolicy
-from llm import LLM, Mistral, Phi2, Solar
+from llm import LLM, Mistral, OpenAIAPILLM, Phi2, Solar
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
 from spacy.cli.download import download as spacy_download
@@ -277,6 +277,10 @@ class KeywordGAGenerator(Generator):
             # Add tokens for mistral.
             if isinstance(self.llm, Mistral):
                 initial_prompt = f"<s>[INST]{initial_prompt}[/INST]"
+
+            elif isinstance(self.llm, OpenAIAPILLM):
+                initial_prompt += " Do not use the word 'lawyer'."
+                initial_prompt += f" Make the prompt so the output of that prompt goal's is: {self.target}"
 
             # Initial prompts.
             initial_prompts.append(initial_prompt)

@@ -18,6 +18,7 @@ sys.path.append(str(Path(__file__).parent / "../"))
 from callbacks import Callbacks
 from chromosome import Chromosome
 from evaluator import Evaluator
+from ga_config import ConfigDefinition, load_config
 from generator import Generator
 from genetic_algorithm import GeneticAlgorithm
 from llm import LLM
@@ -26,14 +27,6 @@ from utils import CacheWithRegister, Register
 
 BI_PORT = os.environ.get("BI_PORT", 4003)
 DEFAULT_RUNTIME_CONFIG = GeneticAlgorithm.RuntimeConfig().to_dict()
-CACHED_LLMS: dict[str, LLM] = CacheWithRegister(
-    "LLM",
-    kwargs={
-        "max_batch": 10,
-        "device": "cuda:0",
-        "default_params": {"max_new_tokens": 50},
-    },
-)
 
 define("port", type=int, default=BI_PORT)
 
@@ -112,26 +105,10 @@ def run(params: dict[str, Any], connection: "WebsocketCommunication"):
         GeneticAlgorithm.RuntimeConfig.from_dict(runtime_config_dict)
     )
 
-    # Use the cache to reload the same LLM.
-    llm_name: str = params["llm"]
-    llm: LLM = CACHED_LLMS[llm_name]
-
-    # Create a population creator object.
-    population_creator_json: str = params["population_creator"]
-    population_creator: PopulationCreator = Register.get(
-        "PopulationCreator", population_creator_json["name"]
-    )(**population_creator_json["params"])
-
-    # Create a population creator object.
-    generator_json: str = params["generator"]
-    generator: Generator = Register.get("Generator", generator_json["name"])(
-        **generator_json["params"]
-    )
-
-    # Create a evaluator creator object.
-    evaluator_json: str = params["evaluator"]
-    evaluator: Evaluator = Register.get("Evaluator", evaluator_json["name"])(
-        **evaluator_json["params"]
+    config: ConfigDefinition = load_config(params["config_name"])
+    genetic_algorithm: GeneticAlgorithm = config.get_genetic_algorithm(
+        params,
+        callbacks=WebsocketCallbacks(connection),
     )
 
     # Obtain the initial prompt (the first broad approximation provided by the user).
@@ -140,22 +117,18 @@ def run(params: dict[str, Any], connection: "WebsocketCommunication"):
     # Obtain the target (defined by the user).
     target: str = params["target"]
 
-    # Create the GA object
-    genetic_algorithm = GeneticAlgorithm(
-        llm=llm,
-        population_creator=population_creator,
-        generator=generator,
-        evaluator=evaluator,
-        callbacks=WebsocketCallbacks(connection),
-    )
-
-    # Let's start the party! Run the algorithm!
+    # # Let's start the party! Run the algorithm!
     genetic_algorithm(
         initial_prompt=initial_prompt, target=target, runtime_config=runtime_config
     )
 
 
-COMMANDS = {"run": run}
+def get_default_inputs(params: dict[str, Any], connection: "WebsocketCommunication"):
+    config: ConfigDefinition = load_config(params["config_name"])
+    return config.get_default_inputs()
+
+
+COMMANDS = {"run": run, "get_default_inputs": get_default_inputs}
 
 
 class WebsocketCommunication(tornado.websocket.WebSocketHandler):

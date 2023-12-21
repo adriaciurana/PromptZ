@@ -27,6 +27,9 @@ class GeneticAlgorithm:
         topk_population: int = field(default=5)
         iterations: int = field(default=1000)
         generator_samples: int = field(default=10)
+        stop_condition_max_iterations_same_best_chromosome: int = field(default=100)
+        stop_condition_last_mean_scores_length: int = field(default=30)
+        stop_condition_last_mean_scores_tol: float = field(default=1e-3)
 
         def to_dict(self) -> dict[str, Any]:
             return asdict(self)
@@ -42,10 +45,6 @@ class GeneticAlgorithm:
         generator: Generator,
         evaluator: Evaluator,
         callbacks: Callbacks = EmptyCallbacks(),
-        *,
-        stop_condition_max_iterations_same_best_chromosome=100,
-        stop_condition_last_mean_scores_length=30,
-        stop_condition_last_mean_scores_tol=1e-3,
     ) -> None:
         self._llm = llm
         self._population_creator = population_creator
@@ -53,14 +52,6 @@ class GeneticAlgorithm:
         self._generator = generator
         self._evaluator = evaluator
         self._callbacks = callbacks
-
-        self._stop_condition_max_iterations_same_best_chromosome = (
-            stop_condition_max_iterations_same_best_chromosome
-        )
-        self._stop_condition_last_mean_scores_length = (
-            stop_condition_last_mean_scores_length
-        )
-        self._stop_condition_last_mean_scores_tol = stop_condition_last_mean_scores_tol
 
     def _filter_population(
         self, population: list[Chromosome], max_population: int
@@ -114,7 +105,7 @@ class GeneticAlgorithm:
         # Condition stop
         self._stop_condition_best_chromosome_counter: TCounter[int] = Counter()
         self._stop_condition_last_mean_scores = deque(
-            maxlen=self._stop_condition_last_mean_scores_length
+            maxlen=runtime_config.stop_condition_last_mean_scores_length
         )
 
         # 5. iterate over N iterations
@@ -156,7 +147,9 @@ class GeneticAlgorithm:
             infos.update({"mean-score": mean_score})
             pbar.set_infos(infos)
 
-            if self.evaluate_stop_condition(population, best_chromosome):
+            if self.evaluate_stop_condition(
+                runtime_config, population, best_chromosome
+            ):
                 break
 
         # 9. Filter population
@@ -170,15 +163,22 @@ class GeneticAlgorithm:
         return best_population
 
     def evaluate_stop_condition(
-        self, current_population: list[Chromosome], best_chromosome: Chromosome
+        self,
+        runtime_config: RuntimeConfig,
+        current_population: list[Chromosome],
+        best_chromosome: Chromosome,
     ):
         self._stop_condition_best_chromosome_counter[best_chromosome.id] += 1
         _, best_counter = self._stop_condition_best_chromosome_counter.most_common(1)[0]
-        if best_counter > self._stop_condition_max_iterations_same_best_chromosome or (
-            len(self._stop_condition_last_mean_scores)
-            == self._stop_condition_last_mean_scores.maxlen
-            and np.std(self._stop_condition_last_mean_scores)
-            <= self._stop_condition_last_mean_scores_tol
+        if (
+            best_counter
+            > runtime_config.stop_condition_max_iterations_same_best_chromosome
+            or (
+                len(self._stop_condition_last_mean_scores)
+                == self._stop_condition_last_mean_scores.maxlen
+                and np.std(self._stop_condition_last_mean_scores)
+                <= runtime_config.stop_condition_last_mean_scores_tol
+            )
         ):
             return True
 

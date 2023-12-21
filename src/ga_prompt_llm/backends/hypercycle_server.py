@@ -12,6 +12,7 @@ sys.path.append(str(Path(__file__).parent / "../"))
 
 from chromosome import Chromosome
 from evaluator import Evaluator
+from ga_config import ConfigDefinition, load_config
 from generator import Generator
 from genetic_algorithm import GeneticAlgorithm
 from llm import LLM
@@ -19,16 +20,8 @@ from population_creator import PopulationCreator
 from pyhypercycle_aim import JSONResponseCORS, SimpleServer, aim_uri
 from utils import CacheWithRegister, Register
 
-PORT = os.environ.get("PORT", 4002)
+PORT = os.environ.get("PORT", 4012)
 DEFAULT_RUNTIME_CONFIG = GeneticAlgorithm.RuntimeConfig().to_dict()
-CACHED_LLMS: dict[str, LLM] = CacheWithRegister(
-    "LLM",
-    kwargs={
-        "max_batch": 10,
-        "device": "cuda:0",
-        "default_params": {"max_new_tokens": 50},
-    },
-)
 
 
 class HypercycleServer(SimpleServer):
@@ -60,19 +53,7 @@ class HypercycleServer(SimpleServer):
                             "iterations": 3,
                             "generator_samples": 10,
                         },
-                        "llm": "M0",
-                        "population_creator": {
-                            "name": "GeneratorPopulationCreator",
-                            "params": {"num_samples": 10},
-                        },
-                        "generator": {
-                            "name": "LLMSimilarSentencesGenerator",
-                            "params": {},
-                        },
-                        "evaluator": {
-                            "name": "BERTSimilarityEvaluator",
-                            "params": {"max_batch": 10},
-                        },
+                        "config_name": "objective_cyanide_chatgpt",
                         "initial_prompt": "Greet me as your friend",
                         "target": "Hello my enemy",
                     },
@@ -99,26 +80,9 @@ class HypercycleServer(SimpleServer):
             GeneticAlgorithm.RuntimeConfig.from_dict(runtime_config_dict)
         )
 
-        # Use the cache to reload the same LLM.
-        llm_name: str = request_json["llm"]
-        llm: LLM = CACHED_LLMS[llm_name]
-
-        # Create a population creator object.
-        population_creator_json: str = request_json["population_creator"]
-        population_creator: PopulationCreator = Register.get(
-            "PopulationCreator", population_creator_json["name"]
-        )(**population_creator_json["params"])
-
-        # Create a population creator object.
-        generator_json: str = request_json["generator"]
-        generator: Generator = Register.get("Generator", generator_json["name"])(
-            **generator_json["params"]
-        )
-
-        # Create a evaluator creator object.
-        evaluator_json: str = request_json["evaluator"]
-        evaluator: Evaluator = Register.get("Evaluator", evaluator_json["name"])(
-            **evaluator_json["params"]
+        config: ConfigDefinition = load_config(request_json["config_name"])
+        genetic_algorithm: GeneticAlgorithm = config.get_genetic_algorithm(
+            request_json,
         )
 
         # Obtain the initial prompt (the first broad approximation provided by the user).
@@ -127,12 +91,9 @@ class HypercycleServer(SimpleServer):
         # Obtain the target (defined by the user).
         target: str = request_json["target"]
 
-        # Create the GA object
-        genetic_algorithm = GeneticAlgorithm(
-            llm=llm,
-            population_creator=population_creator,
-            generator=generator,
-            evaluator=evaluator,
+        # # Let's start the party! Run the algorithm!
+        genetic_algorithm(
+            initial_prompt=initial_prompt, target=target, runtime_config=runtime_config
         )
 
         # Let's start the party! Run the algorithm!
