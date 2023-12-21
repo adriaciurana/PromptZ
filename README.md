@@ -4,6 +4,8 @@
 
 This repository contains a project developed for Challenge 4: Genetic Algorithm in the OpenMesh Hackathon. The project provides various tools for optimizing prompts using a genetic algorithm (GA) approach.
 
+![Framework Overview](./docs/intro.png)
+
 ### Features
 
 - **GA Framework:** Framework based on genetic algorithms that facilitates prompt optimization againts one target/objective.
