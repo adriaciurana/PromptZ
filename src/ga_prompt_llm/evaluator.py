@@ -30,10 +30,9 @@ class Evaluator(ABC):
 
 @Register("Evaluator")
 class MockEvaluator(Evaluator):
-    def __init__(self, device: str = "cuda:0", max_batch: int = 10) -> None:
+    def __init__(self, max_batch: int = 10) -> None:
         super().__init__()
 
-        self.device = device if torch.cuda.is_available() else "cpu"
         self.max_batch = max_batch
 
     def init(self, llm: LLM, target: str) -> None:
