@@ -1,4 +1,4 @@
-# OpenMesh Hackathon - Challenge 4: Genetic Algorithm Project
+# PromptZ - OpenMesh Hackathon - Challenge 4: Genetic Algorithm Project
 
 ## Overview
 
