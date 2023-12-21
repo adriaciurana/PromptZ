@@ -11,14 +11,9 @@ from typing import Any
 sys.path.append(str(Path(__file__).parent / "../"))
 
 from chromosome import Chromosome
-from evaluator import Evaluator
-from ga_config import ConfigDefinition, configuration_names, load_config
-from generator import Generator
+from ga_profiles import ProfileDefinition, load_profile, profile_names
 from genetic_algorithm import GeneticAlgorithm
-from llm import LLM
-from population_creator import PopulationCreator
 from pyhypercycle_aim import JSONResponseCORS, SimpleServer, aim_uri
-from utils import CacheWithRegister, Register
 
 PORT = os.environ.get("PORT", 4002)
 DEFAULT_RUNTIME_CONFIG = GeneticAlgorithm.RuntimeConfig().to_dict()
@@ -53,7 +48,7 @@ class HypercycleServer(SimpleServer):
                             "iterations": 3,
                             "generator_samples": 10,
                         },
-                        "config_name": "objective_cyanide_chatgpt",
+                        "profile_name": "objective_cyanide_chatgpt",
                         "initial_prompt": "Greet me as your friend",
                         "target": "Hello my enemy",
                     },
@@ -80,8 +75,8 @@ class HypercycleServer(SimpleServer):
             GeneticAlgorithm.RuntimeConfig.from_dict(runtime_config_dict)
         )
 
-        config: ConfigDefinition = load_config(request_json["config_name"])
-        genetic_algorithm: GeneticAlgorithm = config.get_genetic_algorithm(
+        profile: ProfileDefinition = load_profile(request_json["profile_name"])
+        genetic_algorithm: GeneticAlgorithm = profile.get_genetic_algorithm(
             request_json,
         )
 
@@ -104,25 +99,25 @@ class HypercycleServer(SimpleServer):
         )
 
     @aim_uri(
-        uri="/configurations",
+        uri="/profiles",
         methods=["GET"],
         endpoint_manifest={
             "input_query": "",
             "input_headers": "",
             "output": {},
-            "documentation": "Returns the feasible configurations",
+            "documentation": "Returns all the profiles",
             "example_calls": [
                 {
                     "method": "GET",
                     "query": "",
                     "headers": "",
-                    "output": ["config_name_a", "config_name_b", "config_name_c"],
+                    "output": ["profile_name_a", "profile_name_b", "profile_name_c"],
                 }
             ],
         },
     )
-    async def configurations(self, request):
-        return JSONResponseCORS(configuration_names())
+    async def profiles(self, request):
+        return JSONResponseCORS(profile_names())
 
 
 def main():

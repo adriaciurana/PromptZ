@@ -402,7 +402,7 @@ class RudeWizardVicuna(HuggingFaceLLM):
 
 
 @Register("LLM")
-class OpenAIAPILLM(LLM):
+class OpenAIAPI(LLM):
     def __init__(
         self,
         max_batch: int = 10,

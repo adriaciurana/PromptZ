@@ -5,7 +5,7 @@ from callbacks import Callbacks, EmptyCallbacks
 from genetic_algorithm import GeneticAlgorithm
 
 
-class ConfigDefinition(ABC):
+class ProfileDefinition(ABC):
     @abstractclassmethod
     def get_default_inputs(cls) -> dict[str, str]:
         ...

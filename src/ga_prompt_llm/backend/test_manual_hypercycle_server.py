@@ -14,7 +14,7 @@ def run_endpoint_for_testing(url: str = "http://localhost:4002"):
                 "iterations": 3,
                 "generator_samples": 10,
             },
-            "config_name": "mock",
+            "profile_name": "mock",
             "initial_prompt": initial_prompt,
             "target": target,
         },

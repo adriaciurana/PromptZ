@@ -17,13 +17,8 @@ sys.path.append(str(Path(__file__).parent / "../"))
 
 from callbacks import Callbacks
 from chromosome import Chromosome
-from evaluator import Evaluator
-from ga_config import ConfigDefinition, configuration_names, load_config
-from generator import Generator
+from ga_profiles import ProfileDefinition, load_profile, profile_names
 from genetic_algorithm import GeneticAlgorithm
-from llm import LLM
-from population_creator import PopulationCreator
-from utils import CacheWithRegister, Register
 
 BI_PORT = os.environ.get("BI_PORT", 4003)
 DEFAULT_RUNTIME_CONFIG = GeneticAlgorithm.RuntimeConfig().to_dict()
@@ -105,8 +100,8 @@ def run(params: dict[str, Any], connection: "WebsocketCommunication"):
         GeneticAlgorithm.RuntimeConfig.from_dict(runtime_config_dict)
     )
 
-    config: ConfigDefinition = load_config(params["config_name"])
-    genetic_algorithm: GeneticAlgorithm = config.get_genetic_algorithm(
+    profile: ProfileDefinition = load_profile(params["profile_name"])
+    genetic_algorithm: GeneticAlgorithm = profile.get_genetic_algorithm(
         params,
         callbacks=WebsocketCallbacks(connection),
     )
@@ -124,26 +119,24 @@ def run(params: dict[str, Any], connection: "WebsocketCommunication"):
 
 
 def get_default_inputs(params: dict[str, Any], connection: "WebsocketCommunication"):
-    config: ConfigDefinition = load_config(params["config_name"])
+    profile: ProfileDefinition = load_profile(params["profile_name"])
 
     connection.write_message(
         json.dumps(
             {
                 "operation": "inputs",
-                "inputs": config.get_default_inputs(),
+                "inputs": profile.get_default_inputs(),
             }
         )
     )
 
 
-def get_configuration_names(
-    params: dict[str, Any], connection: "WebsocketCommunication"
-):
+def get_profile_names(params: dict[str, Any], connection: "WebsocketCommunication"):
     connection.write_message(
         json.dumps(
             {
-                "operation": "configutations",
-                "names": configuration_names(),
+                "operation": "profiles",
+                "names": profile_names(),
             }
         )
     )
@@ -152,7 +145,7 @@ def get_configuration_names(
 COMMANDS = {
     "run": run,
     "get_default_inputs": get_default_inputs,
-    "get_configurations": get_configuration_names,
+    "get_profiles": get_profile_names,
 }
 
 
