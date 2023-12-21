@@ -1,25 +1,13 @@
 var DEFAULT_PARAMS = {
     "runtime_config": {
         "max_population": 5,
-        "topk_population": 3,
+        "topk_population": 10,
         "iterations": 10,
         "generator_samples": 5,
     },
-    "llm": "MockLLM", // M0
-    "population_creator": {
-        "name": "GeneratorPopulationCreator",
-        "params": {"num_samples": 3},
-    },
-    "generator": {
-        "name": "MockGenerator", // LLMSimilarSentencesGenerator
-        "params": {},
-    },
-    "evaluator": {
-        "name": "MockEvaluator", // BERTSimilarityEvaluator
-        "params": {"max_batch": 10},
-    },
-    "initial_prompt": "Greet me as your friend",
-    "target": "Hello my enemy",
+    "config_name": "",
+    "initial_prompt": "",
+    "target": "",
 };
 var WS;
 var NODES = [];
@@ -29,23 +17,31 @@ var NODE_JSID_TO_ID = {};
 var EDGES = [];
 var CHROMOSOMES = {};
 
-function hide_left_side(){
-    let btn = $(".hide_btn");
-    let right_side = $(".right-side");
-    if(btn.hasClass("active")){
-        right_side.show();
-        btn.html("Hide");
-        btn.removeClass("active");
-    }else{
-        right_side.hide();
-        btn.html("Show");
-        btn.addClass("active");
+var NUM_TOTAL_ITERATIONS = 10;
 
-    }
+function start_progress_bar() {
+    // yellow
+    $(".progressBar").addClass("w-[" + 0 + "%] bg-yellow-300");
+
+    // Logic to show the progress bar
+    update_progress_bar(0)
+}
+
+function update_progress_bar(current_iteration){
+    let percentage = current_iteration / NUM_TOTAL_ITERATIONS * 100;
+
+    $(".progressBar").addClass("w-[" + percentage + "%] bg-yellow-300");
+}
+
+function finish_progress_bar(current_iteration) {
+    let percentage = current_iteration / NUM_TOTAL_ITERATIONS * 100;
+
+    // add class as green color
+    $(".progressBar").addClass("w-[" + percentage + "%] bg-green-500");
 }
 
 function recompute_topk(){
-    let html_topk = "";
+    let html_topk = "<div>The following prompts are best suited for your purpose -</div>";
 
     let chromosomes = [];
     for(let chromosome_id in CHROMOSOMES){
@@ -62,20 +58,22 @@ function recompute_topk(){
     
     for(let i = 0; i < DEFAULT_PARAMS["runtime_config"]["topk_population"]; i++){
         let chromosome = chromosomes[i];
-        html_topk += "<div class='box'><p><b>Prompt:</b> " + chromosome['prompt'] + "</p><p><b>Output:</b> " + chromosome['output'] + "</p><p><b>Score</b> " + chromosome['score'] + "</p></div>";
+
+        html_topk += "<div class='border w-full text-sm bg-white rounded-md border-[#E0E0E0] pt-5'> <div class='px-5'> <div class='opacity-50 text-black text-sm font-semibold'>Prompt</div> <div class='text-black text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-black'></div> <div class='flex w-full items-center justify-between'></div> <div class='opacity-50 text-black text-sm font-semibold'>Response</div>  <div class='text-black text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-[#FEFFF5] rounded-bl-[5px] rounded-br-[5px] border border-neutral-200 text-black'> Score: " + chromosome['score'] + " </div> </div>";
     }
 
     $(".topk-menu .list").html(html_topk);
 }
 
-function show_node(id){
+
+function on_show_node(id){
     let chromosome = CHROMOSOMES[NODE_JSID_TO_ID[id]];
-    let chromosome_html = "<div class='box'><p><b>Prompt:</b> " + chromosome['prompt'] + "</p><p><b>Output:</b> " + chromosome['output'] + "</p><p><b>Score</b> " + chromosome['score'] + "</p></div>";
+    let chromosome_html = "<div class='p-1'><div class='w-full text-sm bg-zinc-800 rounded-md pt-5'> <div class='px-5'> <div class='opacity-50 text-[#FFFFFF] text-sm font-semibold'>Prompt</div> <div class='text-[#FFFFFF] text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-[272727]'></div> <div class='flex w-full items-center justify-between'> </div><div class='opacity-50 text-[#FFFFFF] text-sm font-semibold'>Response</div> <div class='text-[#FFFFFF] text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-zinc-900 rounded-bl-[5px] rounded-br-[5px] text-[#FFFFFF]'> Score: " + chromosome['score'] + " </div> </div></div>";
     $(".show-menu").html(chromosome_html);
 }
 
 
-function start_btn(){
+function on_start(){
     let params = DEFAULT_PARAMS; // TODO: copy in the future.
 
     let target = $("#target").val();
@@ -84,10 +82,23 @@ function start_btn(){
     $(".start-menu").hide();
     $(".start-btn").hide(); // for now
     $(".topk-menu").show();
+    $(".hide_btn").removeClass("hidden")        
+    $(".d3-component").removeClass("hidden")
+    $(".right-side").removeClass("hidden")
+    $(".left-side").addClass("overflow-y-scroll")
+    $(".left-side").removeClass("bg-white m-16 border border-[#E0E0E0] h-fit")
+    $(".d3-component").addClass("w-full bg-black")
     params['initial_prompt'] = initial_prompt;
     params['target'] = target;
+    NUM_TOTAL_ITERATIONS = params['runtime_config']['iterations'];
+    params['config_name'] = $('#configurations').find(":selected").val();
 
     send_cmd("run", params); 
+}
+
+function on_change_configuration(){
+    let option = $('#configurations').find(":selected").val();
+    send_cmd("get_default_inputs", {'config_name': option});
 }
 
 /* GRAPH FUNCTIONS */
@@ -138,7 +149,7 @@ function init_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
-    $(".iteration-txt").html("0");
+    start_progress_bar();
 }
 
 function generated_graph(msg_json){
@@ -168,6 +179,8 @@ function generated_graph(msg_json){
             parents_id = chromosome.parent_id;
         }
 
+
+
         // Create edges
         for(let j = 0; j < parents_id.length; j++){
             let parent_id = parents_id[j];
@@ -179,7 +192,8 @@ function generated_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
-    $(".iteration-txt").html(iteration.toString());
+    update_progress_bar(iteration);
+
 }
 
 function filtered_graph(msg_json){
@@ -191,7 +205,7 @@ function filtered_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
-    $(".iteration-txt").html(iteration.toString());
+    update_progress_bar(iteration);
 }
 
 function results_graph(msg_json){
@@ -203,7 +217,27 @@ function results_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
-    $(".iteration-txt").html("Done");
+    finish_progress_bar(NUM_TOTAL_ITERATIONS);
+}
+
+function add_configurations(msg_json){
+    let html = "";
+    let names = msg_json['names'];
+    for(let i = 0; i < names.length; i++){
+        if(i == 0){
+            html += '<option selected value="' + names[i] + '">' + names[i] + '</option>';
+        }else{
+            html += '<option value="' + names[i] + '">' + names[i] + '</option>';
+        }
+    }
+    $("#configurations").html(html);
+
+    on_change_configuration();
+}
+
+function get_inputs(msg_json){
+    $("#target").val(msg_json['inputs']['target']);
+    $("#initial_prompt").val(msg_json['inputs']['initial_prompt']);
 }
 
 /* WEB SOCKET */
@@ -213,9 +247,6 @@ function results_graph(msg_json){
 $(document).ready(function () {
     // let params = DEFAULT_PARAMS; // TODO: copy in the future.
     WS = open_ws();
-    // setTimeout(()=>{ 
-    //     send_cmd("run", params); 
-    // }, 2000);
 }); // ready end
 
 function open_ws(){
@@ -224,7 +255,9 @@ function open_ws(){
     ws.onopen = function(){
         // Web Socket is connected, send data using send()
         console.log("ws open");
-        is_connected = true;
+        send_cmd("get_configurations");
+        $("#root").removeClass("hide-overflow");
+        $("#message-connecting").hide();
     };
 
     ws.onmessage = function (evt){
@@ -250,6 +283,14 @@ function open_ws(){
             case "results":
                 results_graph(msg_json);
                 break;
+
+            case "configutations": 
+                add_configurations(msg_json);
+                break;
+
+            case "inputs": 
+                get_inputs(msg_json);
+                break;
         }
     };
 
@@ -272,20 +313,29 @@ const D3NODE = document.querySelector("#d3_node");
 // Define cola
 const D3ADAPTOR = cola.d3adaptor;
 const right_side = $(".right-side");
+// right_side.removeClass("hidden")
 let width_size = right_side.width();
 let height_size = right_side.height();
+
 const D3COLA = D3ADAPTOR(d3).avoidOverlaps(true).size([width_size, height_size]);
 const SVG = d3.select(D3NODE).append("svg");
 let MAIN_SVG = SVG.append("g").attr("class", "main");
 
 const zoom = d3.zoom().scaleExtent([0.1, 5]).on("zoom", zoomed);
-zoom.filter(function(){
-    // Prevent zoom when mouse over node.
-    return d3.event.target.tagName.toLowerCase() === "svg";
+
+zoom.filter(function () {
+  // Prevent zoom when mouse over node.
+  return d3.event.target.tagName.toLowerCase() === "svg";
 });
+
 SVG.call(zoom);
-function zoomed(){
-    MAIN_SVG.attr("transform", d3.event.transform);
+
+// Set the default scale size (adjust the scale value as needed)
+const defaultScaleSize = 0.5;
+zoom.scaleTo(SVG, defaultScaleSize);
+
+function zoomed() {
+  MAIN_SVG.attr("transform", d3.event.transform).call(zoom);
 }
 
 function draw_graph(){
@@ -326,7 +376,7 @@ function draw_graph(){
     SVG
         .attr("viewBox", `0 0 ${width_size} ${height_size}`)
         .style("width", "100%")
-        .style("height", "auto");
+        .style("height", "100%");
 
     D3COLA
         .nodes(NODES)
@@ -386,11 +436,17 @@ function draw_graph(){
         .call(D3COLA.drag);
 
     node.on("click", (d) => {
-        show_node(d.id);
+        on_show_node(d.id);
+        d3.event.stopPropagation();
     });
 
     text.on("click", (d) => {
-        show_node(d.id);
+        on_show_node(d.id);
+        d3.event.stopPropagation();
+    });
+
+    SVG.on("click", () => {
+        $(".show-menu").html("");
     });
 
     // node.on({
@@ -434,6 +490,3 @@ function draw_graph(){
         });
     });
 }
-
-
-

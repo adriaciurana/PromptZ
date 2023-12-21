@@ -14,19 +14,7 @@ def run_endpoint_for_testing(url: str = "http://localhost:4002"):
                 "iterations": 3,
                 "generator_samples": 10,
             },
-            "llm": "M0",
-            "population_creator": {
-                "name": "GeneratorPopulationCreator",
-                "params": {"num_samples": 10},
-            },
-            "generator": {
-                "name": "LLMSimilarSentencesGenerator",
-                "params": {},
-            },
-            "evaluator": {
-                "name": "BERTSimilarityEvaluator",
-                "params": {"max_batch": 10},
-            },
+            "config_name": "mock",
             "initial_prompt": initial_prompt,
             "target": target,
         },

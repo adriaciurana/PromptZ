@@ -1,67 +1,72 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Prompt</title>
-    <meta name="author" content="Error 404 Team">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <meta name="author" content="Error 404 Team" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
       body {
         margin: 0;
-        background-color: black;
+        background-color: white;
         padding: 0;
         width: 100wh;
         height: 100vh;
       }
 
-      #root{
+      #root {
         width: 100%;
         height: 100%;
       }
 
-      #d3_node{
-        width: 80%;
-        height: 80%;
+      #d3_node {
+        width: 100%;
+        height: 100%;
       }
 
       /* .d3-component svg {
         max-height: 300px;
       } */
 
-      .nodes .node{
+      .nodes .node {
         cursor: pointer;
       }
 
-      .nodes .root{
+      .nodes .root {
         fill: white;
       }
 
-      .texts .root{
+      .texts .root {
         fill: black;
       }
 
-      .nodes .alive{
-        fill: #61DFD1;
-      }
-      
-      .nodes .removed{
-        fill: #FF6565;
-      }
-      
-      .nodes .topk{
-        fill: #629B5E;
+      .nodes .alive {
+        fill: #61dfd1;
       }
 
-      .label{
-        color: white;
+      .nodes .removed {
+        fill: #ff6565;
       }
 
-      .main{
+      .nodes .topk {
+        fill: #629b5e;
+      }
+
+      .label {
+        color: black;
+      }
+
+      .main {
         position: relative;
       }
 
-      .main .hide_btn{
+      .main .hide_btn {
         top: 0;
         left: 50%;
         position: absolute;
@@ -72,76 +77,138 @@
         color: white;
       }
 
-      .main .hide_btn.active{
+      .main .hide_btn.active {
         right: 0 !important;
         left: inherit !important;
       }
 
-      .box.p{
-        color: white;
+      .box.p {
+        color: black;
       }
 
-      .container.full, .main{
+      .container.full,
+      .main {
         height: 100%;
       }
 
-      h2{
-        color: white;
+      h2 {
+        color: black;
+      }
+
+      .hide-overflow{
+        overflow: hidden !important;
+        height: 0 in !important;
       }
 
     </style>
   </head>
   <body>
-  <section class="section" id="root">
-    <div class="container full">
-      <div class="columns main">
-        <div class="column left-side">
-          <div class="start-menu">
-            <div class="field">
-              <label class="label">Target:</label>
-              <div class="control">
-                <textarea id="target" class="textarea" placeholder="e.g. Hello world">Hello my enemy</textarea>
+    <h1 id="message-connecting">Connecting to the server... Wait...</h1>
+
+    <section id="root" class="hide-overflow">
+      <div
+        class=" flex fixed overflow-y-scroll top-0 w-full h-screen bg-[#F6F6F6] justify-center items-center"
+      >
+        <div
+          class="columns main flex w-full h-full  justify-center	bg-[#F6F6F6]"
+        >
+          <div class="column  left-side bg-white m-16 p-16 rounded-md h-fit border border-[#E0E0E0] max-w-5xl">
+            <div class="start-menu grid gap-6">
+              <div class="flex flex-col md:flex-row gap-16 items-center">
+                <div class="flex flex-col items-center">
+                  <div class="text-sm  font-bold">Welcome to</div>
+                  <div class="text-5xl font-black text-black -mt-3">PromptZ</div>
+                </div>
+                <div class="">
+                  A simple tool that helps you to come up with best prompts for
+                  certain LLM generated responses.
+                </div>
+              </div>
+
+              <div class="w-full h-[0px] border border-black"></div>
+              <div class="flex flex-row justify-between items-center">
+                <div class="flex flex-col md:flex-row gap-3 items-center">
+                  <div class="w-2 h-[26px] bg-zinc-300"></div>
+                  <div class="text-black text-2xl font-normal">Let’s get started</div>
+                </div>
+                <div class="mt-4">
+                  <div class="relative">
+                    <select onchange="on_change_configuration()" id="configurations" name="configurations" class="block w-fit p-2.5 pr-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                    </select>
+                  </div>
+                </div>
+                
+              </div>
+              <div class="field w-full">
+                <label class="label"
+                  >Share the response that you wish to hack:</label
+                >
+                <div class="control">
+                  <textarea
+                    id="target"
+                    class="textarea"
+                    placeholder="e.g. Write an example of your expected response here"
+                  >Hello my enemy</textarea
+                  >
+                </div>
+              </div>
+
+
+              <div class="field w-full flex flex-col">
+                <label class="label mt-5 ">Guess a prompt:</label>
+                <div class="control ">
+                  <textarea
+                    id="initial_prompt"
+                    class="textarea"
+                    placeholder="e.g. Write a prompt that you think may generate the response above - of course it can be a wild guess"
+                  >Greet me as your friend
+                  </textarea>
+                </div>
               </div>
             </div>
-  
-            <div class="field">
-              <label class="label">Initial prompt:</label>
-              <div class="control">
-                <textarea id="initial_prompt" class="textarea" placeholder="e.g. Hello world">Greet me as your friend</textarea>
-              </div>
+
+            <div class="topk-menu" style="display: none">
+              <div class="list flex flex-col gap-5 mt-5"></div>
             </div>
+
+            <br />
+
+            <div class="inline-block ">
+              <button onclick="on_start()" class='start-btn button bg-[#77FFB7] px-[19.11px] py-[9.25px] rounded-[5px] border border-black justify-center items-center gap-[6.16px]
+              text-black text-sm font-bold flex gap-2 items-center'>
+                Refine Prompt
+              </button>
+          </div>
           </div>
 
-          <div class="topk-menu" style="display: none;">
-            <h2>Target: <span class="target-txt"></span></h2>
-            <h2>Iteration: <span class="iteration-txt"></span></h2>
-            <h2>Topk Chromosomes:</h2>
-            <div class="list"></div>
+          <div class="column right-side h-full bg-black hidden">
+            <div id="d3_node" class="d3-component flex flex-col w-full h-full relative">
+              <div class="flex flex-col w-full rounded-md bg-zinc-800">
+                <div class=" flex text-white text-lg font-bold  p-4 justify-center">
+                  Prompt evolution in Genetic Algorithm
+                </div> 
+                <div class=" flex  text-white w-full text-sm font-bold bg-zinc-900"> 
+                  <div class="progressBar h-2"></div> 
+                </div> 
+              </div>
+              
+              <div class="show-menu absolute bottom-0 w-full"></div> 
+            </div>
+            
           </div>
-          
-          <br>
-          <button onclick="start_btn()" class="start-btn button is-success">Click here to start!</button>
-        </div>
-        
-        <div class="hide_btn" onclick="hide_left_side()">Hide</div>
-        <div class="column right-side">
-          <div id="d3_node" class="d3-component"></div>
-          <div class="show-menu"></div>
         </div>
       </div>
+    </section>
 
-
-
-      
-
-    </div>
-  </section>
-
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
-  <script src="https://d3js.org/d3.v4.min.js"></script>
-  <script src="http://marvl.infotech.monash.edu/webcola/cola.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js" integrity="sha512-WFN04846sdKMIP5LKNphMaWzU7YpMyCU245etK3g/2ARYbPK9Ub18eG+ljU96qKRCWh+quCY7yefSmlkQw1ANQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="script.js"></script>
-  
-</body>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="http://marvl.infotech.monash.edu/webcola/cola.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
+      integrity="sha512-WFN04846sdKMIP5LKNphMaWzU7YpMyCU245etK3g/2ARYbPK9Ub18eG+ljU96qKRCWh+quCY7yefSmlkQw1ANQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="script.js"></script>
+  </body>
 </html>
