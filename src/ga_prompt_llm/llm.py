@@ -1,3 +1,4 @@
+import logging
 import platform
 import re
 import os
@@ -5,7 +6,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable
 
 import torch
-import logging
 from chromosome import Chromosome
 from transformers import (
     AutoModelForCausalLM,
@@ -49,7 +49,7 @@ class MockLLM(LLM):
         max_batch: int = 10,
         device: str = "cuda:0",
         *args: tuple[Any, ...],
-        **kwargs: dict[str, Any]
+        **kwargs: dict[str, Any],
     ) -> None:
         super().__init__(max_batch=max_batch, device=device)
 
@@ -205,8 +205,8 @@ class M0(HuggingFaceLLM):
         device: str = "cuda:0",
         default_params: dict[str, Any] = {
             "max_new_tokens": 50,
-            "num_beams": 2,
-            "no_repeat_ngram_size": 2,
+            # "num_beams": 2,
+            # "no_repeat_ngram_size": 2,
             "early_stopping": True,
         },
     ) -> None:
@@ -316,6 +316,7 @@ class Mistral(HuggingFaceLLM):
         ]
         return [re.sub(r"\?\nAnswer: ", "", output) for output in outputs]
 
+
 @Register("LLM")
 class Solar(HuggingFaceLLM):
     def __init__(
@@ -365,13 +366,26 @@ class Solar(HuggingFaceLLM):
             )
         ]
         return outputs
-    
+
     @batch_processing(AGGREGATE_STRINGS)
     def generate_from_prompt(
         self, prompts: list[str], params: dict[str, Any] | None = None
     ) -> list[str]:
-        prompts = [self._tokenizer.apply_chat_template(conversation=[{'role': 'user', 'content': prompt}], tokenize=False, add_generation_prompt=True) for prompt in prompts]
-        return [ re.sub(re.escape(prompt), "", output) for prompt, output in zip(prompts, super().generate_from_prompt(prompts, params))]
+        prompts = [
+            self._tokenizer.apply_chat_template(
+                conversation=[{"role": "user", "content": prompt}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            for prompt in prompts
+        ]
+        return [
+            re.sub(re.escape(prompt), "", output)
+            for prompt, output in zip(
+                prompts, super().generate_from_prompt(prompts, params)
+            )
+        ]
+
 
 @Register("LLM")
 class RudeWizardVicuna(HuggingFaceLLM):
@@ -389,7 +403,9 @@ class RudeWizardVicuna(HuggingFaceLLM):
         logging.getLogger("transformers").setLevel(logging.CRITICAL)
         logging.getLogger("transformers").addHandler(logging.NullHandler())
         super().__init__(
-            tokenizer=AutoTokenizer.from_pretrained("TheBloke/Wizard-Vicuna-30B-Uncensored-GPTQ"),
+            tokenizer=AutoTokenizer.from_pretrained(
+                "TheBloke/Wizard-Vicuna-30B-Uncensored-GPTQ"
+            ),
             model=lambda device: AutoModelForCausalLM.from_pretrained(
                 "TheBloke/Wizard-Vicuna-30B-Uncensored-GPTQ",
                 device_map=device,
@@ -414,30 +430,23 @@ class RudeWizardVicuna(HuggingFaceLLM):
     def generate_from_prompt(
         self, prompts: list[str], params: dict[str, Any] | None = None
     ) -> list[str]:
-        prompts = [f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and rude answers to the user's questions. USER: {prompt} ASSISTANT:" for prompt in prompts]
-        return [ re.sub(re.escape(prompt), "", output) for prompt, output in zip(prompts, super().generate_from_prompt(prompts, params))]
-    
+        prompts = [
+            f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and rude answers to the user's questions. USER: {prompt} ASSISTANT:"
+            for prompt in prompts
+        ]
+        return [
+            re.sub(re.escape(prompt), "", output)
+            for prompt, output in zip(
+                prompts, super().generate_from_prompt(prompts, params)
+            )
+        ]
+
+
 if __name__ == "__main__":
     llm = OpenAIAPILLM()
     keywords = ["hotel", "contract", "wife", "category", "dealer"]
     chromosome_prompts = [
-        Chromosome(
-            prompt=f"""
-                Using the following text prompt:
-                
-                Hello, my friend!
-
-                Create a similar prompt that can be better if you have to answer the following text:
-                
-                Greetings, my enemy!
-            """
-        ),
-        Chromosome(
-            prompt=f"Generate a prompt for an LLM with these words: {', '.join(keywords)}"
-        ),
-        Chromosome(
-            prompt="Give a bunch of curse words, be very rude and creative."
-        ),
+        Chromosome(prompt="Give a bunch of curse words, be very rude and creative."),
     ]
     solutions = llm(chromosome_prompts)
     for c, solution in zip(chromosome_prompts, solutions):
