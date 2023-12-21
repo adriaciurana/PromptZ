@@ -20,12 +20,12 @@ To use this project, follow the steps below:
 
 1. Clone the repository to your local machine.
    ```bash
-   git clone https://github.com/adriaciurana/GA-prompt-LLM.git
+   git clone https://github.com/adriaciurana/PromptZ.git
    ```
 
 2. Navigate to the project directory.
    ```bash
-   cd GA-prompt-LLM
+   cd PromptZ
    ```
 
 3. Explore the various tools and components provided in the repository.
@@ -66,7 +66,7 @@ ga(
 ```
 
 ### LLM
-There is a family of LLMs that you can use, and you can find them defined here: [LLM Definitions](https://github.com/adriaciurana/GA-prompt-LLM/blob/main/src/ga_prompt_llm/llm.py#L44).
+There is a family of LLMs that you can use, and you can find them defined here: [LLM Definitions](https://github.com/adriaciurana/PromptZ/blob/main/src/ga_prompt_llm/llm.py#L44).
 You can use a simulated model to test the pipeline (MockLLM), an LLM model for local execution (M0, Phi2, Mistral, ...), or an API (such as ChatGPT).
 E.g:
 ```python
@@ -140,12 +140,12 @@ evaluator = SemanticSimilarityEvaluator(
 ```
 
 ### Runtime configuration
-It allows configuring how we want the Genetic Algorithm to run. You can check the parameters [here](https://github.com/adriaciurana/GA-prompt-LLM/blob/main/src/ga_prompt_llm/genetic_algorithm.py#L25).
+It allows configuring how we want the Genetic Algorithm to run. You can check the parameters [here](https://github.com/adriaciurana/PromptZ/blob/main/src/ga_prompt_llm/genetic_algorithm.py#L25).
 
 ## Run the backend
 
 ### Profiles
-The profiles enable the definition of various configurations in the backends. These configurations encompass how the genetic algorithm should be executed. By default, a set of profiles is available, and you can also use them as reference [here](https://github.com/adriaciurana/GA-prompt-LLM/blob/main/src/ga_prompt_llm/backends/default_configs.py#L35).
+The profiles enable the definition of various configurations in the backends. These configurations encompass how the genetic algorithm should be executed. By default, a set of profiles is available, and you can also use them as reference [here](https://github.com/adriaciurana/PromptZ/blob/main/src/ga_prompt_llm/backends/default_configs.py#L35).
 
 #### How to use my own profiles
 You can easily achieve this by simply adding this environment variable pointing to your profiles:
@@ -155,7 +155,7 @@ GA_PROFILES_PATH="/path/to/myprofiles.py"
 Don't worry about importing the dependencies; our system will handle the injection :)
 
 ### Hypercycle backend
-This setup allows you to execute our algorithm by making a POST call to a RestAPI (you can find the specifications [here](https://github.com/adriaciurana/GA-prompt-LLM/blob/main/src/ga_prompt_llm/backend/hypercycle_server.py#L34)). It returns the best result. You can also find an example [here](https://github.com/adriaciurana/GA-prompt-LLM/blob/main/src/ga_prompt_llm/backend/test_manual_hypercycle_server.py).
+This setup allows you to execute our algorithm by making a POST call to a RestAPI (you can find the specifications [here](https://github.com/adriaciurana/PromptZ/blob/main/src/ga_prompt_llm/backend/hypercycle_server.py#L34)). It returns the best result. You can also find an example [here](https://github.com/adriaciurana/PromptZ/blob/main/src/ga_prompt_llm/backend/test_manual_hypercycle_server.py).
 
 E.g:
 ```python
