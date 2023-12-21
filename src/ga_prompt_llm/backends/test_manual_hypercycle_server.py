@@ -1,7 +1,7 @@
 import requests
 
 
-def run_endpoint_for_testing(url: str = "http://localhost:4012"):
+def run_endpoint_for_testing(url: str = "http://localhost:4002"):
     # Test the prompt endpoint
     initial_prompt = "Greet me as your friend"
     target = "Hello my enemy"
@@ -14,7 +14,7 @@ def run_endpoint_for_testing(url: str = "http://localhost:4012"):
                 "iterations": 3,
                 "generator_samples": 10,
             },
-            "config_name": "objective_cyanide_chatgpt",
+            "config_name": "mock",
             "initial_prompt": initial_prompt,
             "target": target,
         },

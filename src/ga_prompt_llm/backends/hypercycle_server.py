@@ -20,7 +20,7 @@ from population_creator import PopulationCreator
 from pyhypercycle_aim import JSONResponseCORS, SimpleServer, aim_uri
 from utils import CacheWithRegister, Register
 
-PORT = os.environ.get("PORT", 4012)
+PORT = os.environ.get("PORT", 4002)
 DEFAULT_RUNTIME_CONFIG = GeneticAlgorithm.RuntimeConfig().to_dict()
 
 
@@ -34,7 +34,7 @@ class HypercycleServer(SimpleServer):
     }
 
     def __init__(self) -> None:
-        pass
+        ...
 
     @aim_uri(
         uri="/run",
@@ -90,11 +90,6 @@ class HypercycleServer(SimpleServer):
 
         # Obtain the target (defined by the user).
         target: str = request_json["target"]
-
-        # # Let's start the party! Run the algorithm!
-        genetic_algorithm(
-            initial_prompt=initial_prompt, target=target, runtime_config=runtime_config
-        )
 
         # Let's start the party! Run the algorithm!
         chromosomes: list[Chromosome] = genetic_algorithm(
