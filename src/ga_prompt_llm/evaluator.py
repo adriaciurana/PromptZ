@@ -111,7 +111,7 @@ class NonDesiredSimilarityFunction(SimilarityFunction):
         return scores
 
 
-class ObjectiveBasedSimilarityFunction(SimilarityFunction):
+class ObjectiveSimilarityFunction(SimilarityFunction):
     def __init__(
         self,
         non_blackbox_llm: LLM,
@@ -153,7 +153,7 @@ class ObjectiveBasedSimilarityFunction(SimilarityFunction):
 
 
 @Register("Evaluator")
-class BERTSimilarityEvaluator(SimilarityEvaluator):
+class SemanticSimilarityEvaluator(SimilarityEvaluator):
     def __init__(
         self,
         device: str = "cuda:0",

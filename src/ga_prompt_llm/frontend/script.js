@@ -5,7 +5,7 @@ var DEFAULT_PARAMS = {
         "iterations": 10,
         "generator_samples": 5,
     },
-    "config_name": "",
+    "profile_name": "",
     "initial_prompt": "",
     "target": "",
 };
@@ -91,14 +91,14 @@ function on_start(){
     params['initial_prompt'] = initial_prompt;
     params['target'] = target;
     NUM_TOTAL_ITERATIONS = params['runtime_config']['iterations'];
-    params['config_name'] = $('#configurations').find(":selected").val();
+    params['profile_name'] = $('#profiles').find(":selected").val();
 
     send_cmd("run", params); 
 }
 
-function on_change_configuration(){
-    let option = $('#configurations').find(":selected").val();
-    send_cmd("get_default_inputs", {'config_name': option});
+function on_change_profile(){
+    let option = $('#profiles').find(":selected").val();
+    send_cmd("get_default_inputs", {'profile_name': option});
 }
 
 /* GRAPH FUNCTIONS */
@@ -220,7 +220,7 @@ function results_graph(msg_json){
     finish_progress_bar(NUM_TOTAL_ITERATIONS);
 }
 
-function add_configurations(msg_json){
+function add_profiles(msg_json){
     let html = "";
     let names = msg_json['names'];
     for(let i = 0; i < names.length; i++){
@@ -230,9 +230,9 @@ function add_configurations(msg_json){
             html += '<option value="' + names[i] + '">' + names[i] + '</option>';
         }
     }
-    $("#configurations").html(html);
+    $("#profiles").html(html);
 
-    on_change_configuration();
+    on_change_profile();
 }
 
 function get_inputs(msg_json){
@@ -255,7 +255,7 @@ function open_ws(){
     ws.onopen = function(){
         // Web Socket is connected, send data using send()
         console.log("ws open");
-        send_cmd("get_configurations");
+        send_cmd("get_profiles");
         $("#root").removeClass("hide-overflow");
         $("#message-connecting").hide();
     };
@@ -284,8 +284,8 @@ function open_ws(){
                 results_graph(msg_json);
                 break;
 
-            case "configutations": 
-                add_configurations(msg_json);
+            case "profiles": 
+                add_profiles(msg_json);
                 break;
 
             case "inputs": 

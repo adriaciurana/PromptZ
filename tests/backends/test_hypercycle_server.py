@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import requests
-from backends.test_manual_hypercycle_server import run_endpoint_for_testing
+from backend.test_manual_hypercycle_server import run_endpoint_for_testing
 from xprocess import ProcessStarter
 
 
@@ -17,7 +17,7 @@ def hypercycle_server(request, xprocess):
         # command to start process
         args = [
             "python",
-            request.config.rootdir / "src/ga_prompt_llm/backends/hypercycle_server.py",
+            request.config.rootdir / "src/ga_prompt_llm/backend/hypercycle_server.py",
         ]
 
     # ensure process is running and return its logfile

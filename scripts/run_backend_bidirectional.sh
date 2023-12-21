@@ -3,4 +3,4 @@ SCRIPT=$(readlink -f $0)
 # Absolute path this script is in. /home/user/bin
 SCRIPTPATH=`dirname $SCRIPT`
 
-python "${SCRIPTPATH}/../src/ga_prompt_llm/backends/bidirectional_server.py"
+python "${SCRIPTPATH}/../src/ga_prompt_llm/backend/bidirectional_server.py"

@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 from chromosome import Chromosome
-from evaluator import BERTSimilarityEvaluator, Evaluator
+from evaluator import Evaluator, SemanticSimilarityEvaluator
 from llm import LLM
 
 
@@ -36,7 +36,7 @@ class MockLLM(LLM):
 mock_llm = MockLLM()
 
 
-@pytest.mark.parametrize("evaluator", [BERTSimilarityEvaluator()])
+@pytest.mark.parametrize("evaluator", [SemanticSimilarityEvaluator()])
 def test_execute_llm(evaluator: Evaluator, population: list[Chromosome]) -> None:
     evaluator.init(mock_llm, "I'm full of happiness.")
     evaluator(population)

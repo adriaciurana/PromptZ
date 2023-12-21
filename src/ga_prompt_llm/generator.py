@@ -14,7 +14,7 @@ from chromosome import Chromosome, FixedLengthChromosome, KeywordsChromosome
 from classic.mating_pool import MatingPoolPolicy
 from classic.parents import ParentsPolicy, TournamentSelection
 from classic.variations import LLMCrossOver, LLMMutator, VariationsPolicy
-from llm import LLM, Mistral, OpenAIAPILLM, Phi2, Solar
+from llm import LLM, Mistral, OpenAIAPI, Phi2, Solar
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet as wn
 from spacy.cli.download import download as spacy_download
@@ -65,7 +65,7 @@ class MockGenerator(Generator):
 
 
 @Register("Generator")
-class KeywordGAGenerator(Generator):
+class KeywordsGenerator(Generator):
     ChromosomeObject = KeywordsChromosome
 
     def __init__(self, min_gene: int = 2, max_gene: int = 16) -> None:
@@ -278,7 +278,7 @@ class KeywordGAGenerator(Generator):
             if isinstance(self.llm, Mistral):
                 initial_prompt = f"<s>[INST]{initial_prompt}[/INST]"
 
-            elif isinstance(self.llm, OpenAIAPILLM):
+            elif isinstance(self.llm, OpenAIAPI):
                 initial_prompt += " Do not use the word 'lawyer'."
                 initial_prompt += f" Make the prompt so the output of that prompt goal's is: {self.target}"
 
@@ -595,7 +595,7 @@ class ClassicGenerator(Generator):
 
 
 @Register("Generator")
-class LLMSimilarSentencesGeneratorNotEfficient(Generator):
+class NLGeneratorNotEfficient(Generator):
     # TODO: Redefine the API and merge with the classic generator
     # Not efficient if you want to use batch
     def __init__(self, num_parents: int = 100) -> None:
@@ -625,7 +625,7 @@ class LLMSimilarSentencesGeneratorNotEfficient(Generator):
 
 
 @Register("Generator")
-class LLMSimilarSentencesGenerator(Generator):
+class NLGenerator(Generator):
     def __init__(self):
         super().__init__()
 
