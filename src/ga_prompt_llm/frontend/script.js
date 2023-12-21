@@ -2,7 +2,7 @@ var DEFAULT_PARAMS = {
     "runtime_config": {
         "max_population": 5,
         "topk_population": 3,
-        "iterations": 10,
+        "iterations": 1,
         "generator_samples": 5,
     },
     "llm": "MockLLM", // M0
@@ -33,6 +33,7 @@ var NUM_TOTAL_ITERATIONS = 10;
 
 function start_progress_bar() {
     // yellow
+    $(".progressBar").addClass("w-[" + 0 + "%] bg-yellow-300");
 
     // Logic to show the progress bar
     update_progress_bar(0)
@@ -52,9 +53,6 @@ function finish_progress_bar(current_iteration) {
 
     // add class as green color
     $(".progressBar").addClass("w-[" + percentage + "%] bg-green-500");
-
-    // Logic to show the progress bar
-    NUM_TOTAL_ITERATIONS
 }
 
 function hide_left_side(){
@@ -91,12 +89,8 @@ function recompute_topk(){
     for(let i = 0; i < DEFAULT_PARAMS["runtime_config"]["topk_population"]; i++){
         let chromosome = chromosomes[i];
 
-        // const fixedPromt = chromosome['promt'];
-
-        html_topk += "<div class='border w-full text-sm bg-white rounded-md border-[#E0E0E0] pt-5'> <div class='px-5'> <div class='opacity-50 text-black text-sm font-semibold'>Prompt</div> <div class='text-black text-sm font-bold text-wrap'>" + chromosome['prompt'].split('/').pop() + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-black'></div> <div class='flex w-full items-center justify-between'> <div class='opacity-50 text-black text-sm font-bold'>Response</div> </div> <div class='text-black text-sm font-regular mt-4'>" + chromosome['output'].split('/').pop() + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-[#FEFFF5] rounded-bl-[5px] rounded-br-[5px] border border-neutral-200'> Score:" + chromosome['score'] + " </div> </div>";
+        html_topk += "<div class='border w-full text-sm bg-white rounded-md border-[#E0E0E0] pt-5'> <div class='px-5'> <div class='opacity-50 text-black text-sm font-semibold'>Prompt</div> <div class='text-black text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-black'></div> <div class='flex w-full items-center justify-between'> <div class='opacity-50 text-black text-sm font-bold'>Response</div> </div> <div class='text-black text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-[#FEFFF5] rounded-bl-[5px] rounded-br-[5px] border border-neutral-200'> Score: " + chromosome['score'] + " </div> </div>";
     }
-
-    
 
     $(".topk-menu .list").html(html_topk);
 }
@@ -104,7 +98,7 @@ function recompute_topk(){
 
 function show_node(id){
     let chromosome = CHROMOSOMES[NODE_JSID_TO_ID[id]];
-    let chromosome_html = "<div class='box'><p><b>Prompt:</b> " + chromosome['prompt'] + "</p><p><b>Output:</b> " + chromosome['output'] + "</p><p><b>Score</b> " + chromosome['score'] + "</p></div>";
+    let chromosome_html = "<div class='p-1'><div class='border w-full text-sm bg-white rounded-md border-[#E0E0E0] pt-5'> <div class='px-5'> <div class='opacity-50 text-black text-sm font-semibold'>Prompt</div> <div class='text-black text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-black'></div> <div class='flex w-full items-center justify-between'> <div class='opacity-50 text-black text-sm font-bold'>Response</div> </div> <div class='text-black text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-[#FEFFF5] rounded-bl-[5px] rounded-br-[5px] border border-neutral-200'> Score: " + chromosome['score'] + " </div> </div></div>";
     $(".show-menu").html(chromosome_html);
 }
 
@@ -246,7 +240,7 @@ function results_graph(msg_json){
     }
     draw_graph();
     recompute_topk();
-    finish_progress_bar(iteration);
+    finish_progress_bar(NUM_TOTAL_ITERATIONS);
 }
 
 /* WEB SOCKET */
@@ -440,10 +434,21 @@ function draw_graph(){
 
     node.on("click", (d) => {
         show_node(d.id);
+        console.log(d)
+        console.log("AAAA")
+        d3.event.stopPropagation();
     });
 
     text.on("click", (d) => {
         show_node(d.id);
+        console.log(d)
+        console.log("AAAA")
+        d3.event.stopPropagation();
+    });
+
+    SVG.on("click", () => {
+        $(".show-menu").html("");
+        console.log("BBBB")
     });
 
     // node.on({
