@@ -29,3 +29,7 @@ if CONFIGS is None:
 def load_config(name: str):
     global CONFIGS
     return CONFIGS[name]
+
+
+def configuration_names() -> list[str]:
+    return list(CONFIGS.keys())

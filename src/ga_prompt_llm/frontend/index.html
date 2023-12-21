@@ -97,7 +97,9 @@
     </style>
   </head>
   <body>
-    <section  id="root">
+    <h1 id="message-connecting">Connecting to the server... Wait...</h1>
+
+    <section id="root" style="display: none;">
       <div
         class=" flex fixed overflow-y-scroll top-0 w-full h-screen bg-[#F6F6F6] justify-center items-center"
       >
@@ -125,11 +127,7 @@
                 </div>
                 <div class="mt-4">
                   <div class="relative">
-                    <select id="configurations" name="configurations" class="block appearance-none w-fit p-2.5 pr-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                      <option selected>Choose a configuration</option>
-                      <option value="US">Configuration 1</option>
-                      <option value="CA">Configuration 2</option>
-                      <option value="FR">Configuration 3</option>
+                    <select onchange="on_change_configuration()" id="configurations" name="configurations" class="block appearance-none w-fit p-2.5 pr-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -156,10 +154,6 @@
               <img src="logo.png" alt="logo" /> -->
 
               <div class="field w-full flex flex-col">
-                <div class="flex gap-2 items-center -mt-5">
-                  <input class="flex bg-red-200" type="checkbox" > Objective based. </input>
-                </div>
-
                 <label class="label mt-5 ">Guess a prompt:</label>
                 <div class="control ">
                   <textarea
@@ -185,7 +179,7 @@
             </button> -->
 
             <div class="inline-block ">
-              <button onclick="start_btn()" class='start-btn button bg-[#77FFB7] px-[19.11px] py-[9.25px] rounded-[5px] border border-black justify-center items-center gap-[6.16px]
+              <button onclick="on_start()" class='start-btn button bg-[#77FFB7] px-[19.11px] py-[9.25px] rounded-[5px] border border-black justify-center items-center gap-[6.16px]
               text-black text-sm font-bold flex gap-2 items-center'>
                 <!-- <Image src={'/img/refine.svg'} height={12} width={12} alt='refine' /> -->
                 Refine Prompt

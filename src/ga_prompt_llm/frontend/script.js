@@ -5,21 +5,9 @@ var DEFAULT_PARAMS = {
         "iterations": 10,
         "generator_samples": 5,
     },
-    "llm": "MockLLM", // M0
-    "population_creator": {
-        "name": "GeneratorPopulationCreator",
-        "params": {"num_samples": 3},
-    },
-    "generator": {
-        "name": "MockGenerator", // LLMSimilarSentencesGenerator
-        "params": {},
-    },
-    "evaluator": {
-        "name": "MockEvaluator", // BERTSimilarityEvaluator
-        "params": {"max_batch": 10},
-    },
-    "initial_prompt": "Greet me as your friend",
-    "target": "Hello my enemy",
+    "config_name": "",
+    "initial_prompt": "",
+    "target": "",
 };
 var WS;
 var NODES = [];
@@ -41,11 +29,8 @@ function start_progress_bar() {
 
 function update_progress_bar(current_iteration){
     let percentage = current_iteration / NUM_TOTAL_ITERATIONS * 100;
-    // $(".progressBar").html(percentage)
 
     $(".progressBar").addClass("w-[" + percentage + "%] bg-yellow-300");
-
-    console.log({percentage})
 }
 
 function finish_progress_bar(current_iteration) {
@@ -55,20 +40,20 @@ function finish_progress_bar(current_iteration) {
     $(".progressBar").addClass("w-[" + percentage + "%] bg-green-500");
 }
 
-function hide_left_side(){
-    let btn = $(".hide_btn");
-    let right_side = $(".right-side");
-    if(btn.hasClass("active")){
-        right_side.show();
-        btn.html("Hide");
-        btn.removeClass("active");
-    }else{
-        right_side.hide();
-        btn.html("Show");
-        btn.addClass("active");
+// function hide_left_side(){
+//     let btn = $(".hide_btn");
+//     let right_side = $(".right-side");
+//     if(btn.hasClass("active")){
+//         right_side.show();
+//         btn.html("Hide");
+//         btn.removeClass("active");
+//     }else{
+//         right_side.hide();
+//         btn.html("Show");
+//         btn.addClass("active");
 
-    }
-}
+//     }
+// }
 
 function recompute_topk(){
     let html_topk = "<div>The following prompts are best suited for your purpose -</div>";
@@ -96,14 +81,14 @@ function recompute_topk(){
 }
 
 
-function show_node(id){
+function on_show_node(id){
     let chromosome = CHROMOSOMES[NODE_JSID_TO_ID[id]];
     let chromosome_html = "<div class='p-1'><div class='w-full text-sm bg-zinc-800 rounded-md pt-5'> <div class='px-5'> <div class='opacity-50 text-[#FFFFFF] text-sm font-semibold'>Prompt</div> <div class='text-[#FFFFFF] text-sm font-bold text-wrap'>" + chromosome['prompt'] + "</div> <div class='w-full h-[0px] my-3 opacity-20 border border-[272727]'></div> <div class='flex w-full items-center justify-between'> </div><div class='opacity-50 text-[#FFFFFF] text-sm font-semibold'>Response</div> <div class='text-[#FFFFFF] text-sm font-regular mt-4'>" + chromosome['output'] + "</div> </div> <div class='w-full flex items-center px-5 py-2 mt-4 bg-zinc-900 rounded-bl-[5px] rounded-br-[5px] text-[#FFFFFF]'> Score: " + chromosome['score'] + " </div> </div></div>";
     $(".show-menu").html(chromosome_html);
 }
 
 
-function start_btn(){
+function on_start(){
     let params = DEFAULT_PARAMS; // TODO: copy in the future.
 
     let target = $("#target").val();
@@ -121,8 +106,14 @@ function start_btn(){
     params['initial_prompt'] = initial_prompt;
     params['target'] = target;
     NUM_TOTAL_ITERATIONS = params['runtime_config']['iterations'];
+    params['config_name'] = $('#configurations').find(":selected").val();
 
     send_cmd("run", params); 
+}
+
+function on_change_configuration(){
+    let option = $('#configurations').find(":selected").val();
+    send_cmd("get_default_inputs", {'config_name': option});
 }
 
 /* GRAPH FUNCTIONS */
@@ -244,6 +235,26 @@ function results_graph(msg_json){
     finish_progress_bar(NUM_TOTAL_ITERATIONS);
 }
 
+function add_configurations(msg_json){
+    let html = "";
+    let names = msg_json['names'];
+    for(let i = 0; i < names.length; i++){
+        if(i == 0){
+            html += '<option selected value="' + names[i] + '">' + names[i] + '</option>';
+        }else{
+            html += '<option value="' + names[i] + '">' + names[i] + '</option>';
+        }
+    }
+    $("#configurations").html(html);
+
+    on_change_configuration();
+}
+
+function get_inputs(msg_json){
+    $("#target").val(msg_json['inputs']['target']);
+    $("#initial_prompt").val(msg_json['inputs']['initial_prompt']);
+}
+
 /* WEB SOCKET */
 
 // Based on https://github.com/cankav/simple_websocket_example
@@ -251,9 +262,6 @@ function results_graph(msg_json){
 $(document).ready(function () {
     // let params = DEFAULT_PARAMS; // TODO: copy in the future.
     WS = open_ws();
-    // setTimeout(()=>{ 
-    //     send_cmd("run", params); 
-    // }, 2000);
 }); // ready end
 
 function open_ws(){
@@ -262,7 +270,9 @@ function open_ws(){
     ws.onopen = function(){
         // Web Socket is connected, send data using send()
         console.log("ws open");
-        is_connected = true;
+        send_cmd("get_configurations");
+        $("#root").show();
+        $("#message-connecting").hide();
     };
 
     ws.onmessage = function (evt){
@@ -287,6 +297,14 @@ function open_ws(){
 
             case "results":
                 results_graph(msg_json);
+                break;
+
+            case "configutations": 
+                add_configurations(msg_json);
+                break;
+
+            case "inputs": 
+                get_inputs(msg_json);
                 break;
         }
     };
@@ -314,7 +332,6 @@ const right_side = $(".right-side");
 let width_size = right_side.width();
 let height_size = right_side.height();
 
-console.log({height_size})
 const D3COLA = D3ADAPTOR(d3).avoidOverlaps(true).size([width_size, height_size]);
 const SVG = d3.select(D3NODE).append("svg");
 let MAIN_SVG = SVG.append("g").attr("class", "main");
@@ -434,22 +451,17 @@ function draw_graph(){
         .call(D3COLA.drag);
 
     node.on("click", (d) => {
-        show_node(d.id);
-        console.log(d)
-        console.log("AAAA")
+        on_show_node(d.id);
         d3.event.stopPropagation();
     });
 
     text.on("click", (d) => {
-        show_node(d.id);
-        console.log(d)
-        console.log("AAAA")
+        on_show_node(d.id);
         d3.event.stopPropagation();
     });
 
     SVG.on("click", () => {
         $(".show-menu").html("");
-        console.log("BBBB")
     });
 
     // node.on({

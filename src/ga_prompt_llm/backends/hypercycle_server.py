@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).parent / "../"))
 
 from chromosome import Chromosome
 from evaluator import Evaluator
-from ga_config import ConfigDefinition, load_config
+from ga_config import ConfigDefinition, configuration_names, load_config
 from generator import Generator
 from genetic_algorithm import GeneticAlgorithm
 from llm import LLM
@@ -107,6 +107,27 @@ class HypercycleServer(SimpleServer):
                 "output": chromosomes[0].output,
             }
         )
+
+    @aim_uri(
+        uri="/configurations",
+        methods=["GET"],
+        endpoint_manifest={
+            "input_query": "",
+            "input_headers": "",
+            "output": {},
+            "documentation": "Returns the feasible configurations",
+            "example_calls": [
+                {
+                    "method": "GET",
+                    "query": "",
+                    "headers": "",
+                    "output": ["config_name_a", "config_name_b", "config_name_c"],
+                }
+            ],
+        },
+    )
+    async def configurations(self, request):
+        return JSONResponseCORS(configuration_names())
 
 
 def main():

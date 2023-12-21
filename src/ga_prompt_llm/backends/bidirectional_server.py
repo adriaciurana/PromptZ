@@ -18,7 +18,7 @@ sys.path.append(str(Path(__file__).parent / "../"))
 from callbacks import Callbacks
 from chromosome import Chromosome
 from evaluator import Evaluator
-from ga_config import ConfigDefinition, load_config
+from ga_config import ConfigDefinition, configuration_names, load_config
 from generator import Generator
 from genetic_algorithm import GeneticAlgorithm
 from llm import LLM
@@ -125,10 +125,35 @@ def run(params: dict[str, Any], connection: "WebsocketCommunication"):
 
 def get_default_inputs(params: dict[str, Any], connection: "WebsocketCommunication"):
     config: ConfigDefinition = load_config(params["config_name"])
-    return config.get_default_inputs()
+
+    connection.write_message(
+        json.dumps(
+            {
+                "operation": "inputs",
+                "inputs": config.get_default_inputs(),
+            }
+        )
+    )
 
 
-COMMANDS = {"run": run, "get_default_inputs": get_default_inputs}
+def get_configuration_names(
+    params: dict[str, Any], connection: "WebsocketCommunication"
+):
+    connection.write_message(
+        json.dumps(
+            {
+                "operation": "configutations",
+                "names": configuration_names(),
+            }
+        )
+    )
+
+
+COMMANDS = {
+    "run": run,
+    "get_default_inputs": get_default_inputs,
+    "get_configurations": get_configuration_names,
+}
 
 
 class WebsocketCommunication(tornado.websocket.WebSocketHandler):
@@ -144,7 +169,7 @@ class WebsocketCommunication(tornado.websocket.WebSocketHandler):
 
     def on_message(self, message):
         message_json = json.loads(message)
-        COMMANDS[message_json["cmd"]](message_json["params"], self)
+        COMMANDS[message_json["cmd"]](message_json.get("params", {}), self)
 
     def on_close(self):
         print("WebSocket closed")

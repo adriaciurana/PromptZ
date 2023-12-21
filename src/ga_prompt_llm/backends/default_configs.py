@@ -6,6 +6,7 @@ from callbacks import Callbacks, EmptyCallbacks
 from chromosome import Chromosome
 from evaluator import (
     BERTSimilarityEvaluator,
+    MockEvaluator,
     NonDesiredSimilarityFunction,
     ObjectiveBasedSimilarityFunction,
 )
@@ -14,9 +15,10 @@ from generator import (
     ComposerGenerator,
     KeywordGAGenerator,
     LLMSimilarSentencesGenerator,
+    MockGenerator,
 )
 from genetic_algorithm import GeneticAlgorithm
-from llm import LLM, M0, Mistral, OpenAIAPILLM, RudeWizardVicuna
+from llm import LLM, M0, Mistral, MockLLM, OpenAIAPILLM, RudeWizardVicuna
 from population_creator import GeneratorPopulationCreator
 from utils import CacheWithRegister
 
@@ -28,6 +30,29 @@ CACHED_LLMS: dict[str, LLM] = CacheWithRegister(
         "default_params": {"max_new_tokens": 50},
     },
 )
+
+
+class Mock:
+    @classmethod
+    def get_default_inputs(cls):
+        return {
+            "initial_prompt": "Hello my friend!",
+            "target": "Hello my friend!",
+        }
+
+    @classmethod
+    def get_genetic_algorithm(
+        cls, params: dict[str, Any], callbacks: Callbacks = EmptyCallbacks()
+    ) -> GeneticAlgorithm:
+        ga = GeneticAlgorithm(
+            llm=MockLLM(),
+            population_creator=GeneratorPopulationCreator(10),
+            generator=MockGenerator(),
+            evaluator=MockEvaluator(),
+            callbacks=callbacks,
+        )
+
+        return ga
 
 
 class ObjectiveCyanideChatGPT:
@@ -230,6 +255,7 @@ class SimilarityRudeLocal:
 
 
 CONFIGS = {
+    "mock": Mock,
     "objective_cyanide_chatgpt": ObjectiveCyanideChatGPT,
     "objective_rude_chatgpt": ObjectiveRudeChatGPT,
     "objective_rude_local": ObjectiveRudeLocal,
