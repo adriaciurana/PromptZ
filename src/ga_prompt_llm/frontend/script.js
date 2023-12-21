@@ -2,7 +2,7 @@ var DEFAULT_PARAMS = {
     "runtime_config": {
         "max_population": 5,
         "topk_population": 10,
-        "iterations": 2,
+        "iterations": 10,
         "generator_samples": 5,
     },
     "config_name": "",
