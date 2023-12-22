@@ -1,5 +1,7 @@
 # PromptZ - OpenMesh Hackathon - Challenge 4: Genetic Algorithm Project
 
+![Logo](./docs/logo.png)
+
 ## Overview
 
 This repository contains a project developed for Challenge 4: Genetic Algorithm in the OpenMesh Hackathon. The project provides various tools for optimizing prompts using a genetic algorithm (GA) approach.
@@ -100,7 +102,11 @@ It allows generating variations in the population and creating new chromosomes.
 There are mainly two types of generations:
 - **Keyword-Based**: As mentioned earlier, keyword-based generation involves defining adjectives, nouns, and verbs to subsequently generate the prompt using a generative algorithm (trained by us or using an LLM). Mutations/crossovers are performed in the keyword space.
 
+![KeywordsGenerator](./docs/keywordsgenerator.png)
+
 - **Natural Language-Based**: In this case, it applies directly to the prompts, and LLMs are used to generate similar sentences (mutations) and crossovers (using an approach similar to the one proposed in the paper [Promptmix](https://aclanthology.org/2023.emnlp-main.323.pdf)).
+
+![NLGenerator](./docs/nlgenerator.png)
 
 E.g:
 ```python
@@ -116,7 +122,11 @@ The evaluator is responsible for defining how to weigh the chromosomes. In our c
 
 - **Semantic Similarity-Based**: It compares the output of the LLM and the target using a document retrieval model.
 
+![Semantic Similarity Evaluator](./docs/semantic_similarity_evaluator.png)
+
 - **Objective-Based**: When the exact desired output is not known, but the objective is clear. It is useful, for example, for "prompt injection," such as creating offensive language or explaining harmful actions. We believe that this could be extremely useful if we train an LLM model on information that could be sensitive, and we want to ensure that we have no security vulnerabilities. For instance, let's consider training the model with data from a database of legal cases to develop an LLM that can provide assistance in future legal scenarios. Currently, we use a separate LLM model without safeguards to generate potential targets. However, a similar objective can be achieved by pre-training a classification model, indicating, for instance, whether the output is confidential or not.
+
+![Objective Evaluator](./docs/objective_evaluator.png)
 
 ```python
 # Similarity based
@@ -157,6 +167,8 @@ Don't worry about importing the dependencies; our system will handle the injecti
 ### Hypercycle backend
 This setup allows you to execute our algorithm by making a POST call to a RestAPI (you can find the specifications [here](https://github.com/adriaciurana/PromptZ/blob/main/src/ga_prompt_llm/backend/hypercycle_server.py#L34)). It returns the best result. You can also find an example [here](https://github.com/adriaciurana/PromptZ/blob/main/src/ga_prompt_llm/backend/test_manual_hypercycle_server.py).
 
+![Hypercycle Architecture](./docs/hypercycle_arch.png)
+
 E.g:
 ```python
 {
@@ -181,6 +193,8 @@ E.g:
 
 ### Frontend/Backend real-time interactive
 As mentioned in the introduction, we firmly believe in **usability** and **interpretability**.
+
+![Bidirectional Architecture](./docs/bidirectional_arch.png)
 
 If we cannot interpret our results, how can we analyze correctly our Large Language Model (LLM)? That's why we've included a dashboard that allows real-time interpretation of the Genetic Algorithm (GA) results. We consider this feature as the :cherries: on the :cake: for our solution.
 
@@ -210,6 +224,13 @@ You can also interact with the graph, and by clicking on a node, you can access 
 
 #### docker
 `./docker/run_backend_bidirectional.sh`
+
+## Extra diagrams
+### Natural Language Generator (NLGenerator)
+![Natural Languange Generator](./docs/chromosome_llm_generation.png)
+
+### Keywords Generator (KeywordsGenerator)
+![Interactive Graph](./docs/keywords_arch.png)
 
 
 ## Contributors
