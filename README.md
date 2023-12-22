@@ -1,5 +1,7 @@
 # PromptZ - OpenMesh Hackathon - Challenge 4: Genetic Algorithm Project
 
+![Logo](./docs/logo.png)
+
 ## Overview
 
 This repository contains a project developed for Challenge 4: Genetic Algorithm in the OpenMesh Hackathon. The project provides various tools for optimizing prompts using a genetic algorithm (GA) approach.
@@ -222,6 +224,13 @@ You can also interact with the graph, and by clicking on a node, you can access 
 
 #### docker
 `./docker/run_backend_bidirectional.sh`
+
+## Extra diagrams
+### Natural Language Generator (NLGenerator)
+![Natural Languange Generator](./docs/chromosome_llm_generation.png)
+
+### Keywords Generator (KeywordsGenerator)
+![Interactive Graph](./docs/keywords_arch.png)
 
 
 ## Contributors
